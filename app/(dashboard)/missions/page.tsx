@@ -2,8 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Calendar, ChevronRight, ClipboardList, MessageSquare, CheckCircle } from "lucide-react";
-import { StatusPill } from "@/components/ui/custom/status-pill";
+import {
+  ChevronRight,
+  ClipboardList,
+  GraduationCap,
+  CheckSquare,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Clock,
+  Circle,
+  MessageSquare,
+} from "lucide-react";
 import { mockMissions } from "@/lib/mock-missions-data";
 import type { Mission, MissionStatus } from "@/lib/mock-missions-data";
 
@@ -15,51 +25,36 @@ const font = {
 
 type FilterMode = "all" | "pending" | "passed";
 
-function getStatusPillProps(status: MissionStatus): {
-  label: string;
-  variant: "success" | "warning" | "indigo" | "danger" | "neutral";
-} {
-  switch (status) {
-    case "passed":
-      return { label: "Passed", variant: "success" };
-    case "needs-revision":
-      return { label: "Needs Revision", variant: "warning" };
-    case "submitted":
-      return { label: "Submitted", variant: "indigo" };
-    case "in-review":
-      return { label: "In Review", variant: "indigo" };
-    case "not-started":
-      return { label: "Not Started", variant: "neutral" };
-  }
+function getCardBg(status: MissionStatus): string {
+  return status === "not-started" ? "#0E0E0E" : "#111111";
 }
 
-function getDueMeta(dateStr: string, status: MissionStatus): { text: string; color: string } {
-  if (status === "passed") {
-    return { text: "COMPLETED", color: "var(--color-success-text)" };
-  }
-  if (status === "submitted" || status === "in-review") {
-    return { text: "SUBMITTED", color: "var(--color-indigo-text)" };
+function isOverdue(dateStr: string): boolean {
+  const due = new Date(dateStr + "T23:59:59");
+  return due.getTime() < Date.now();
+}
+
+function getDueMeta(
+  dateStr: string,
+  status: MissionStatus
+): { text: string } | null {
+  if (status === "passed" || status === "submitted" || status === "in-review") {
+    return null;
   }
 
   const due = new Date(dateStr + "T23:59:59");
   const now = new Date();
   const diffMs = due.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  const formatted = new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
 
-  if (status === "needs-revision" && diffDays < 0) {
-    return { text: `OVERDUE · ${formatted}`, color: "var(--color-warning-text)" };
+  if (diffDays < 0) {
+    return null;
   }
-  if (status === "not-started" && diffDays < 0) {
-    return { text: `OVERDUE · ${formatted}`, color: "var(--color-danger-text)" };
-  }
-  if (diffDays <= 3) {
-    return { text: `DUE ${formatted}`, color: "var(--color-warning-text)" };
-  }
-  return { text: `DUE ${formatted}`, color: "var(--color-text-tertiary)" };
+
+  const formatted = new Date(dateStr)
+    .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    .toUpperCase();
+  return { text: formatted };
 }
 
 function filterMissions(missions: Mission[], filter: FilterMode): Mission[] {
@@ -68,14 +63,17 @@ function filterMissions(missions: Mission[], filter: FilterMode): Mission[] {
       return missions;
     case "pending":
       return missions.filter(
-        (m) => m.status === "not-started" || m.status === "needs-revision" || m.status === "submitted"
+        (m) =>
+          m.status === "not-started" ||
+          m.status === "needs-revision" ||
+          m.status === "submitted"
       );
     case "passed":
       return missions.filter((m) => m.status === "passed");
   }
 }
 
-function FilterPill({
+function FilterTab({
   label,
   active,
   onClick,
@@ -88,33 +86,32 @@ function FilterPill({
     <button
       onClick={onClick}
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "6px 12px",
-        borderRadius: 999,
-        border: `1px solid ${active ? "var(--color-indigo-border)" : "var(--color-border-subtle)"}`,
-        backgroundColor: active ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
-        color: active ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
-        fontFamily: font.mono,
-        fontSize: 11,
-        lineHeight: "14px",
-        fontWeight: 600,
-        letterSpacing: "0.10em",
-        textTransform: "uppercase",
+        padding: "10px 20px",
+        fontFamily: font.body,
+        fontSize: 14,
+        fontWeight: 500,
+        color: active
+          ? "var(--color-text-primary)"
+          : "var(--color-text-tertiary)",
+        backgroundColor: "transparent",
+        border: "none",
+        borderBottom: active
+          ? "2px solid var(--color-indigo)"
+          : "2px solid transparent",
+        marginBottom: -1,
         cursor: "pointer",
-        transitionProperty: "border-color, background-color, color",
+        transitionProperty: "color",
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quart)",
-        fontVariantNumeric: "tabular-nums",
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          e.currentTarget.style.borderColor = "var(--color-border-strong)";
+          e.currentTarget.style.color = "var(--color-text-secondary)";
         }
       }}
       onMouseLeave={(e) => {
         if (!active) {
-          e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+          e.currentTarget.style.color = "var(--color-text-tertiary)";
         }
       }}
     >
@@ -196,10 +193,131 @@ function EmptyState({ filter }: { filter: FilterMode }) {
   );
 }
 
+function OverdueRow() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <AlertTriangle
+        style={{
+          width: 11,
+          height: 11,
+          color: "var(--color-text-secondary)",
+          flexShrink: 0,
+        }}
+      />
+      <span
+        style={{
+          fontFamily: font.mono,
+          fontSize: 11,
+          lineHeight: "14px",
+          fontWeight: 600,
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          color: "var(--color-text-primary)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        OVERDUE
+      </span>
+    </div>
+  );
+}
+
+function StatusIndicator({ mission, overdue }: { mission: Mission; overdue: boolean }) {
+  const iconSize = { width: 13, height: 13, flexShrink: 0 } as const;
+  const labelStyle = {
+    fontFamily: font.body,
+    fontSize: 12,
+    fontWeight: 500,
+    lineHeight: "16px",
+  } as const;
+
+  switch (mission.status) {
+    case "passed":
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <CheckCircle style={{ ...iconSize, color: "var(--color-text-secondary)" }} />
+          <span style={{ ...labelStyle, color: "var(--color-text-secondary)" }}>
+            Passed
+          </span>
+        </div>
+      );
+    case "needs-revision":
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {overdue && <OverdueRow />}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <AlertCircle style={{ ...iconSize, color: "#F59E0B" }} />
+            <span style={{ ...labelStyle, color: "#F59E0B" }}>
+              Needs revision
+            </span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <MessageSquare
+              style={{
+                width: 11,
+                height: 11,
+                color: "var(--color-text-tertiary)",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontFamily: font.mono,
+                fontSize: 10,
+                lineHeight: "12px",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                color: "var(--color-text-tertiary)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              Feedback received
+            </span>
+          </div>
+        </div>
+      );
+    case "submitted":
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Clock style={{ ...iconSize, color: "var(--color-text-tertiary)" }} />
+          <span style={{ ...labelStyle, color: "var(--color-text-tertiary)" }}>
+            Submitted
+          </span>
+        </div>
+      );
+    case "in-review":
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Clock style={{ ...iconSize, color: "var(--color-text-tertiary)" }} />
+          <span style={{ ...labelStyle, color: "var(--color-text-tertiary)" }}>
+            In review
+          </span>
+        </div>
+      );
+    case "not-started":
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {overdue && <OverdueRow />}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <Circle style={{ ...iconSize, color: "var(--color-text-tertiary)" }} />
+            <span style={{ ...labelStyle, color: "var(--color-text-tertiary)" }}>
+              Not started
+            </span>
+          </div>
+        </div>
+      );
+  }
+}
+
 function MissionCell({ mission }: { mission: Mission }) {
-  const statusProps = getStatusPillProps(mission.status);
   const due = getDueMeta(mission.dueAt, mission.status);
-  const showFeedback = mission.status === "needs-revision";
+  const cardBg = getCardBg(mission.status);
   const isReviewed = mission.type === "reviewed";
 
   return (
@@ -209,13 +327,13 @@ function MissionCell({ mission }: { mission: Mission }) {
     >
       <div
         style={{
-          backgroundColor: "var(--color-bg-surface)",
-          padding: 24,
+          backgroundColor: cardBg,
+          padding: 20,
           cursor: "pointer",
           display: "flex",
           flexDirection: "column",
           height: "100%",
-          minHeight: 180,
+          minHeight: 160,
           transitionProperty: "background-color",
           transitionDuration: "var(--duration-fast)",
           transitionTimingFunction: "var(--ease-out-quart)",
@@ -224,56 +342,87 @@ function MissionCell({ mission }: { mission: Mission }) {
           e.currentTarget.style.backgroundColor = "#1C1C1C";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+          e.currentTarget.style.backgroundColor = cardBg;
         }}
       >
-        {/* TOP ROW — Mission number + Status */}
+        {/* TOP ROW */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 8,
+            alignItems: "center",
           }}
         >
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 10,
-              lineHeight: "12px",
-              fontWeight: 600,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-              fontVariantNumeric: "tabular-nums",
-              marginTop: 6,
-            }}
-          >
-            {`MISSION ${mission.number}`}
-          </span>
-          <StatusPill label={statusProps.label} variant={statusProps.variant} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {isReviewed ? (
+              <GraduationCap
+                style={{
+                  width: 12,
+                  height: 12,
+                  color: "var(--color-text-tertiary)",
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <CheckSquare
+                style={{
+                  width: 12,
+                  height: 12,
+                  color: "var(--color-text-tertiary)",
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            <span
+              style={{
+                fontFamily: font.mono,
+                fontSize: 10,
+                lineHeight: "12px",
+                fontWeight: 600,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--color-text-tertiary)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {`MISSION ${mission.number}`}
+            </span>
+          </div>
+
+          {due && (
+            <span
+              style={{
+                fontFamily: font.mono,
+                fontSize: 11,
+                lineHeight: "14px",
+                fontWeight: 500,
+                textTransform: "uppercase",
+                color: "var(--color-text-tertiary)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {due.text}
+            </span>
+          )}
         </div>
 
-        {/* Title */}
+        {/* TITLE */}
         <p
+          className="line-clamp-2"
           style={{
             fontFamily: font.display,
             fontSize: 15,
-            lineHeight: "22px",
+            lineHeight: "21px",
             fontWeight: 600,
             color: "var(--color-text-primary)",
             margin: 0,
-            marginTop: 12,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            marginTop: 10,
           }}
         >
           {mission.title}
         </p>
 
-        {/* Module tag */}
+        {/* MODULE */}
         <p
           style={{
             fontFamily: font.mono,
@@ -283,7 +432,7 @@ function MissionCell({ mission }: { mission: Mission }) {
             textTransform: "uppercase",
             color: "var(--color-text-tertiary)",
             margin: 0,
-            marginTop: 8,
+            marginTop: 6,
             fontVariantNumeric: "tabular-nums",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -294,106 +443,29 @@ function MissionCell({ mission }: { mission: Mission }) {
           {mission.module}
         </p>
 
-        {/* Type indicator */}
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            alignSelf: "flex-start",
-            height: 20,
-            padding: "3px 8px",
-            borderRadius: 999,
-            backgroundColor: isReviewed
-              ? "var(--color-indigo-subtle)"
-              : "var(--color-bg-surface-3)",
-            border: `1px solid ${isReviewed ? "var(--color-indigo-border)" : "var(--color-border-subtle)"}`,
-            fontFamily: font.mono,
-            fontSize: 10,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            color: isReviewed
-              ? "var(--color-indigo-text)"
-              : "var(--color-text-tertiary)",
-            fontVariantNumeric: "tabular-nums",
-            marginTop: 8,
-          }}
-        >
-          {isReviewed ? "Mentor reviewed" : "Completion only"}
-        </span>
-
         {/* SPACER */}
         <div style={{ flex: 1 }} />
 
-        {/* BOTTOM META */}
+        {/* BOTTOM ROW */}
         <div
           style={{
             marginTop: 16,
             borderTop: "1px solid var(--color-border-subtle)",
-            paddingTop: 14,
+            paddingTop: 12,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              {mission.status === "passed" ? (
-                <CheckCircle
-                  style={{ width: 12, height: 12, color: due.color, flexShrink: 0 }}
-                />
-              ) : (
-                <Calendar
-                  style={{ width: 12, height: 12, color: due.color, flexShrink: 0 }}
-                />
-              )}
-              <span
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 11,
-                  lineHeight: "14px",
-                  fontWeight: 500,
-                  textTransform: "uppercase",
-                  color: due.color,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {due.text}
-              </span>
-            </div>
-
-            {showFeedback && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  marginTop: 4,
-                }}
-              >
-                <MessageSquare
-                  style={{
-                    width: 11,
-                    height: 11,
-                    color: "var(--color-warning-text)",
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 10,
-                    lineHeight: "12px",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    color: "var(--color-warning-text)",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  Feedback received
-                </span>
-              </div>
-            )}
-          </div>
+          <StatusIndicator
+            mission={mission}
+            overdue={
+              isOverdue(mission.dueAt) &&
+              mission.status !== "passed" &&
+              mission.status !== "submitted" &&
+              mission.status !== "in-review"
+            }
+          />
 
           <ChevronRight
             style={{
@@ -412,8 +484,8 @@ function MissionCell({ mission }: { mission: Mission }) {
 export default function MissionsPage() {
   const [filter, setFilter] = useState<FilterMode>("all");
 
-  const sortedMissions = [...mockMissions].sort(
-    (a, b) => a.number.localeCompare(b.number)
+  const sortedMissions = [...mockMissions].sort((a, b) =>
+    a.number.localeCompare(b.number)
   );
   const filtered = filterMissions(sortedMissions, filter);
 
@@ -466,42 +538,36 @@ export default function MissionsPage() {
             maxWidth: 520,
           }}
         >
-          Your weekly deliverables. Submit your work, receive mentor feedback, and build your Bitcoin design portfolio.
+          Your weekly deliverables. Submit your work, receive mentor feedback,
+          and build your Bitcoin design portfolio.
         </p>
 
-        {/* Filter row */}
+        {/* Tab bar */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: 0,
             marginTop: 20,
+            borderBottom: "1px solid var(--color-border-subtle)",
           }}
         >
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 500,
-              color: "var(--color-text-tertiary)",
-            }}
-          >
-            Filter:
-          </span>
-          <FilterPill label="All" active={filter === "all"} onClick={() => setFilter("all")} />
-          <FilterPill label="Pending" active={filter === "pending"} onClick={() => setFilter("pending")} />
-          <FilterPill label="Passed" active={filter === "passed"} onClick={() => setFilter("passed")} />
+          <FilterTab
+            label="All"
+            active={filter === "all"}
+            onClick={() => setFilter("all")}
+          />
+          <FilterTab
+            label="Pending"
+            active={filter === "pending"}
+            onClick={() => setFilter("pending")}
+          />
+          <FilterTab
+            label="Passed"
+            active={filter === "passed"}
+            onClick={() => setFilter("passed")}
+          />
         </div>
-
-        {/* Divider */}
-        <div
-          style={{
-            height: 1,
-            backgroundColor: "var(--color-border-subtle)",
-            marginTop: 24,
-          }}
-        />
       </header>
 
       {/* MISSION GRID */}
