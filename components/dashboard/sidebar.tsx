@@ -12,88 +12,167 @@ import {
   Users,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/home", label: "Home", icon: Home },
-  { href: "/learn", label: "Learn", icon: BookOpen },
-  { href: "/missions", label: "Missions", icon: Target },
-  { href: "/live", label: "Live", icon: Radio },
-  { href: "/resources", label: "Resources", icon: FolderOpen },
-  { href: "/community", label: "Community", icon: Users },
+const navGroups = [
+  {
+    label: "LEARN",
+    items: [
+      { href: "/home", label: "Home", icon: Home },
+      { href: "/learn", label: "Learn", icon: BookOpen },
+      { href: "/missions", label: "Missions", icon: Target },
+      { href: "/live", label: "Live", icon: Radio },
+    ],
+  },
+  {
+    label: "EXPLORE",
+    items: [
+      { href: "/resources", label: "Resources", icon: FolderOpen },
+      { href: "/community", label: "Community", icon: Users },
+    ],
+  },
 ] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-[#242424] bg-[#090909] md:flex md:flex-col"
-      style={{ height: "100vh" }}
+    <aside
+      className="fixed inset-y-0 left-0 z-30 hidden md:flex md:flex-col"
+      style={{
+        width: 260,
+        height: "100vh",
+        backgroundColor: "var(--color-bg-surface)",
+        borderRight: "1px solid var(--color-border-subtle)",
+        padding: 16,
+      }}
     >
-      <div className="flex h-16 items-center px-6">
+      {/* Logo zone — 64px height */}
+      <div style={{ height: 64, display: "flex", alignItems: "center", paddingLeft: 12 }}>
         <Link href="/home">
           <img
             src="/logo-white.svg"
             alt="BitDesigners Africa"
-            style={{ height: "24px", width: "auto", display: "block", filter: "brightness(0) invert(1)" }}
+            style={{ height: 24, width: "auto", display: "block", filter: "brightness(0) invert(1)" }}
           />
         </Link>
       </div>
 
-      <nav className="flex-1 px-3 py-4">
+      <nav style={{ flex: 1 }}>
         <LayoutGroup>
-          <ul className="space-y-1">
-            {navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                pathname.startsWith(item.href + "/");
-              const Icon = item.icon;
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              {/* §4.8 Nav group header: label token, text-tertiary, padding 20px 12px 8px */}
+              <p
+                style={{
+                  fontFamily: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+                  fontSize: 11,
+                  lineHeight: "14px",
+                  fontWeight: 600,
+                  letterSpacing: "0.10em",
+                  textTransform: "uppercase",
+                  color: "var(--color-text-tertiary)",
+                  padding: "20px 12px 8px",
+                  margin: 0,
+                }}
+              >
+                {group.label}
+              </p>
 
-              return (
-                <li key={item.href} className="relative">
-                  {isActive && (
-                    <motion.div
-                      layoutId="sidebar-nav-indicator"
-                      className="absolute inset-y-0 left-0 w-[3px] rounded-full bg-[#6366F1]"
-                      transition={{
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 28,
-                      }}
-                    />
-                  )}
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-lg border-0 px-3 py-2.5 text-sm font-medium outline-none transition-colors ${
-                      isActive
-                        ? "bg-[#1A1A1A] text-[#FFFFFF]"
-                        : "text-[#B5B5B5] hover:bg-[#111111] hover:text-[#FFFFFF]"
-                    }`}
-                  >
-                    <Icon className="h-[18px] w-[18px] shrink-0" />
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+              <ul style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {group.items.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    pathname.startsWith(item.href + "/");
+                  const Icon = item.icon;
+
+                  return (
+                    <li key={item.href} style={{ position: "relative", listStyle: "none" }}>
+                      {/* §4.8 Active marker: 2px × 16px indigo bar, left edge */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="sidebar-nav-indicator"
+                          style={{
+                            position: "absolute",
+                            top: "50%",
+                            left: 0,
+                            width: 2,
+                            height: 16,
+                            borderRadius: 999,
+                            backgroundColor: "var(--color-indigo)",
+                            transform: "translateY(-50%)",
+                          }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 28,
+                          }}
+                        />
+                      )}
+                      <Link
+                        href={item.href}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          height: 40,
+                          padding: "0 12px",
+                          borderRadius: 10,
+                          fontSize: "14.5px",
+                          lineHeight: "22px",
+                          fontWeight: 500,
+                          fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
+                          color: isActive
+                            ? "var(--color-text-primary)"
+                            : "var(--color-text-secondary)",
+                          backgroundColor: isActive
+                            ? "var(--color-bg-surface-3)"
+                            : "transparent",
+                          textDecoration: "none",
+                          transitionProperty: "background-color, color",
+                          transitionDuration: "var(--duration-fast)",
+                          transitionTimingFunction: "var(--ease-out-quart)",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.04)";
+                            e.currentTarget.style.color = "var(--color-text-primary)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                            e.currentTarget.style.color = "var(--color-text-secondary)";
+                          }
+                        }}
+                      >
+                        <Icon style={{ width: 18, height: 18, flexShrink: 0 }} />
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </LayoutGroup>
       </nav>
 
+      {/* User zone */}
       <div
         style={{
-          padding: "16px",
-          borderTop: "1px solid #242424",
+          padding: 16,
+          borderTop: "1px solid var(--color-border-subtle)",
           display: "flex",
           alignItems: "center",
-          gap: "10px",
+          gap: 10,
         }}
       >
         <div
           style={{
-            width: "32px",
-            height: "32px",
-            borderRadius: "9999px",
-            backgroundColor: "#1A1A1A",
-            border: "1px solid #242424",
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            backgroundColor: "var(--color-bg-surface-3)",
+            border: "1px solid var(--color-border-subtle)",
             flexShrink: 0,
           }}
         />
@@ -101,27 +180,34 @@ export function Sidebar() {
           <p
             style={{
               margin: 0,
-              fontSize: "14px",
+              fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
+              fontSize: "14.5px",
               fontWeight: 500,
-              color: "#FFFFFF",
+              color: "var(--color-text-primary)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
-            Member
+            Amara
           </p>
           <span
             style={{
               display: "inline-flex",
               alignItems: "center",
-              borderRadius: "9999px",
-              backgroundColor: "#1E1B4B",
-              padding: "2px 8px",
-              fontSize: "11px",
+              height: 20,
+              borderRadius: 6,
+              backgroundColor: "var(--color-indigo-subtle)",
+              border: "1px solid var(--color-indigo-border)",
+              padding: "0 8px",
+              fontFamily: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+              fontSize: 10,
               fontWeight: 500,
-              color: "#6366F1",
-              lineHeight: "16px",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--color-indigo-text)",
+              lineHeight: "12px",
+              marginTop: 2,
             }}
           >
             Learner

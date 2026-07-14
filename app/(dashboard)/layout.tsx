@@ -8,12 +8,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#090909]">
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg-base)" }}>
       <Sidebar />
       <MobileNav />
 
-      <main className="min-h-screen pb-20 md:pl-60 md:pb-0">
-        <div className="mx-auto max-w-[1200px] px-4 pt-4 pb-4 md:px-6 md:pt-6 md:pb-6">
+      <main
+        className="min-h-screen pb-20 md:pb-0 md:ml-[260px]"
+        style={{ flex: 1, overflowY: "auto", padding: "48px 32px" }}
+      >
+        <div style={{ maxWidth: 880, margin: "0 auto" }}>
           <PageTransition>{children}</PageTransition>
         </div>
       </main>
