@@ -210,3 +210,30 @@
     padding-right: 20px !important;
   }
 }
+
+/* Lesson page: hide right sidebar and bottom nav below 1024px */
+@media (max-width: 1023px) {
+  .lesson-right-col {
+    display: none !important;
+  }
+  .lesson-left-col {
+    padding-right: 0 !important;
+  }
+  .lesson-bottom-nav {
+    display: none !important;
+  }
+}
+
+/* Doc page: responsive sticky bar */
+@media (max-width: 768px) {
+  .doc-top-bar {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    margin-left: -20px !important;
+    margin-right: -20px !important;
+  }
+  .doc-content {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
