@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import {
   ChevronRight,
   ChevronLeft,
+  ChevronUp,
   CheckCircle,
   XCircle,
   PlayCircle,
@@ -128,9 +129,157 @@ const mockSessions = [
 ];
 
 // ---------------------------------------------------------------------------
+// Mark Complete Section
+// ---------------------------------------------------------------------------
+function MarkCompleteSection({
+  disabled,
+  hint,
+  isComplete,
+  onMarkComplete,
+}: {
+  disabled: boolean;
+  hint: string;
+  isComplete: boolean;
+  onMarkComplete: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  if (isComplete) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          width: "100%",
+          height: 40,
+          borderRadius: 10,
+          backgroundColor: "var(--color-success-subtle)",
+          border: "1px solid var(--color-success-border)",
+          color: "var(--color-success-text)",
+          fontFamily: font.body,
+          fontSize: "14.5px",
+          fontWeight: 500,
+        }}
+      >
+        <CheckCircle style={{ width: 16, height: 16 }} />
+        Lesson Complete
+      </div>
+    );
+  }
+  return (
+    <div>
+      <button
+        onClick={disabled ? undefined : onMarkComplete}
+        disabled={disabled}
+        onMouseEnter={() => { if (!disabled) setHovered(true); }}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: 40,
+          borderRadius: 10,
+          backgroundColor: !disabled && hovered ? "rgba(99,102,241,0.06)" : "transparent",
+          border: disabled
+            ? "1px solid var(--color-border-subtle)"
+            : hovered
+              ? "1px solid var(--color-indigo-border)"
+              : "1px solid var(--color-border-strong)",
+          color: !disabled && hovered
+            ? "var(--color-indigo-text)"
+            : "var(--color-text-primary)",
+          fontFamily: font.body,
+          fontSize: "14.5px",
+          lineHeight: "22px",
+          fontWeight: 500,
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.4 : 1,
+          transitionProperty: "border-color, color, background-color, opacity",
+          transitionDuration: "var(--duration-fast)",
+          transitionTimingFunction: "var(--ease-out-quart)",
+        }}
+      >
+        Mark Lesson Complete
+      </button>
+      {disabled && (
+        <p
+          style={{
+            fontFamily: font.mono,
+            fontSize: 11,
+            lineHeight: "14px",
+            fontWeight: 600,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+            color: "var(--color-text-tertiary)",
+            textAlign: "center",
+            marginTop: 8,
+          }}
+        >
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Progress hint for non-actionable tabs
+// ---------------------------------------------------------------------------
+function TabProgressHint({ isComplete }: { isComplete: boolean }) {
+  if (isComplete) {
+    return (
+      <div style={{ marginTop: 32, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+        <CheckCircle style={{ width: 16, height: 16, color: "var(--color-success-text)" }} />
+        <span
+          style={{
+            fontFamily: font.mono,
+            fontSize: 11,
+            lineHeight: "14px",
+            fontWeight: 600,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+            color: "var(--color-success-text)",
+          }}
+        >
+          Lesson Complete
+        </span>
+      </div>
+    );
+  }
+  return (
+    <p
+      style={{
+        fontFamily: font.mono,
+        fontSize: 11,
+        lineHeight: "14px",
+        fontWeight: 600,
+        letterSpacing: "0.10em",
+        textTransform: "uppercase",
+        color: "var(--color-text-tertiary)",
+        textAlign: "center",
+        marginTop: 32,
+      }}
+    >
+      Complete the Lesson and Questions tabs to finish this lesson
+    </p>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Quiz Component
 // ---------------------------------------------------------------------------
-function QuestionsTab({ onPass }: { onPass: () => void }) {
+function QuestionsTab({
+  onPass,
+  isComplete,
+  onMarkComplete,
+}: {
+  onPass: () => void;
+  isComplete: boolean;
+  onMarkComplete: () => void;
+}) {
   const [answers, setAnswers] = useState<(number | null)[]>(
     new Array(quizQuestions.length).fill(null)
   );
@@ -138,6 +287,7 @@ function QuestionsTab({ onPass }: { onPass: () => void }) {
   const [score, setScore] = useState(0);
 
   const allAnswered = answers.every((a) => a !== null);
+  const passed = submitted && score >= 4;
 
   function handleSelect(qIdx: number, optIdx: number) {
     if (submitted) return;
@@ -327,6 +477,16 @@ function QuestionsTab({ onPass }: { onPass: () => void }) {
           </div>
         )}
       </div>
+
+      {/* Mark Complete — Questions tab */}
+      <div style={{ marginTop: 32 }}>
+        <MarkCompleteSection
+          disabled={!passed}
+          hint="Pass the questions to unlock"
+          isComplete={isComplete}
+          onMarkComplete={onMarkComplete}
+        />
+      </div>
     </div>
   );
 }
@@ -353,13 +513,17 @@ function IconWithTooltip({
       <button
         onClick={onClick}
         style={{
-          background: "none",
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          backgroundColor: hovered ? "var(--color-bg-surface-3)" : "transparent",
           border: "none",
-          padding: 4,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          transitionProperty: "background-color",
+          transitionDuration: "var(--duration-fast)",
         }}
       >
         <Icon
@@ -464,7 +628,8 @@ export default function ModulePage() {
   const nav = getModuleNavigation(slug);
   const mod = nav.current;
 
-  const totalModules = mockUnits.flatMap((u) => u.modules).length;
+  const currentUnit = mod ? mockUnits.find((u) => u.number === mod.unitNumber) : null;
+  const unitModuleCount = currentUnit ? currentUnit.modules.length : 0;
 
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [quizPassed, setQuizPassed] = useState(false);
@@ -472,6 +637,8 @@ export default function ModulePage() {
   const [panelState, setPanelState] = useState<PanelState>("expanded");
   const [sidebarProgress, setSidebarProgress] = useState(0);
   const [lessonStatuses, setLessonStatuses] = useState(mockLessons);
+  const [readLesson, setReadLesson] = useState(false);
+  const [videoCollapsed, setVideoCollapsed] = useState(false);
 
   useEffect(() => {
     if (mod) {
@@ -519,7 +686,6 @@ export default function ModulePage() {
   const panelWidth = panelState === "expanded" ? 280 : panelState === "collapsed" ? 48 : 0;
 
   return (
-    // Outer wrapper: break out of dashboard layout padding, fill viewport
     <div
       className="lesson-viewport"
       style={{
@@ -542,7 +708,7 @@ export default function ModulePage() {
           position: "relative",
         }}
       >
-        {/* ── BACK LINK (flex-shrink: 0) ── */}
+        {/* -- BACK LINK -- */}
         <div style={{ flexShrink: 0, padding: "16px 32px" }}>
           <Link
             href="/learn"
@@ -564,76 +730,149 @@ export default function ModulePage() {
           </Link>
         </div>
 
-        {/* ── VIDEO SECTION (flex-shrink: 0) ── */}
-        <div style={{ flexShrink: 0, padding: "0 32px" }}>
+        {/* -- VIDEO SECTION (collapsible) -- */}
+        <div
+          style={{
+            flexShrink: 0,
+            display: "grid",
+            gridTemplateRows: videoCollapsed ? "0fr" : "1fr",
+            transition: "grid-template-rows 250ms cubic-bezier(0.25, 1, 0.5, 1)",
+          }}
+        >
           <div
             style={{
-              position: "relative",
-              width: "100%",
-              aspectRatio: "16 / 9",
-              borderRadius: 14,
               overflow: "hidden",
-              backgroundColor: "var(--color-bg-surface)",
+              minHeight: 0,
+              opacity: videoCollapsed ? 0 : 1,
+              transition: "opacity 150ms cubic-bezier(0.25, 1, 0.5, 1)",
             }}
           >
-            <iframe
-              src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
-              title={mod.title}
-              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-            />
-          </div>
+            <div style={{ padding: "0 32px" }}>
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: "16 / 9",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  backgroundColor: "var(--color-bg-surface)",
+                }}
+              >
+                <iframe
+                  src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
+                  title={mod.title}
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                />
+              </div>
 
-          {/* Metadata row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-            <span
-              style={{
-                fontFamily: font.mono,
-                fontSize: 11,
-                lineHeight: "14px",
-                fontWeight: 600,
-                letterSpacing: "0.10em",
-                textTransform: "uppercase",
-                color: "var(--color-text-tertiary)",
-              }}
-            >
-              Lesson {String(mod.lessonsComplete || 1).padStart(2, "0")} of {String(mod.lessons).padStart(2, "0")}
-            </span>
-          </div>
+              {/* Metadata row */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                <span
+                  style={{
+                    fontFamily: font.mono,
+                    fontSize: 11,
+                    lineHeight: "14px",
+                    fontWeight: 600,
+                    letterSpacing: "0.10em",
+                    textTransform: "uppercase",
+                    color: "var(--color-text-tertiary)",
+                  }}
+                >
+                  Lesson {String(mod.lessonsComplete || 1).padStart(2, "0")} of {String(mod.lessons).padStart(2, "0")}
+                </span>
+              </div>
 
-          {/* Module title */}
-          <h1
-            style={{
-              fontFamily: font.display,
-              fontSize: 24,
-              lineHeight: "30px",
-              fontWeight: 600,
-              letterSpacing: "-0.015em",
-              color: "var(--color-text-primary)",
-              margin: 0,
-              marginTop: 16,
-            }}
-          >
-            {mod.title}
-          </h1>
-          <p
-            style={{
-              fontFamily: font.mono,
-              fontSize: 13,
-              lineHeight: "18px",
-              fontWeight: 500,
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-              margin: 0,
-              marginTop: 6,
-            }}
-          >
-            Unit {mod.unitNumber} · Module {mod.moduleNumber} · {mod.track}
-          </p>
+              {/* Module title */}
+              <h1
+                style={{
+                  fontFamily: font.display,
+                  fontSize: 24,
+                  lineHeight: "30px",
+                  fontWeight: 600,
+                  letterSpacing: "-0.015em",
+                  color: "var(--color-text-primary)",
+                  margin: 0,
+                  marginTop: 16,
+                }}
+              >
+                {mod.title}
+              </h1>
+              <p
+                style={{
+                  fontFamily: font.mono,
+                  fontSize: 13,
+                  lineHeight: "18px",
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  color: "var(--color-text-tertiary)",
+                  margin: 0,
+                  marginTop: 6,
+                  paddingBottom: 16,
+                }}
+              >
+                Unit {mod.unitNumber} · Module {mod.moduleNumber} · {mod.track}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* ── TAB BAR (flex-shrink: 0) ── */}
+        {/* -- VIDEO COLLAPSE TOGGLE -- */}
+        <button
+          onClick={() => setVideoCollapsed((v) => !v)}
+          style={{
+            flexShrink: 0,
+            width: "100%",
+            height: 28,
+            backgroundColor: "var(--color-bg-surface-2)",
+            borderTop: "1px solid var(--color-border-subtle)",
+            borderBottom: "1px solid var(--color-border-subtle)",
+            borderLeft: "none",
+            borderRight: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            cursor: "pointer",
+            color: "var(--color-text-tertiary)",
+            transitionProperty: "background-color, color",
+            transitionDuration: "var(--duration-fast)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--color-bg-surface-3)";
+            e.currentTarget.style.color = "var(--color-text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+            e.currentTarget.style.color = "var(--color-text-tertiary)";
+          }}
+        >
+          <ChevronUp
+            style={{
+              width: 14,
+              height: 14,
+              color: "inherit",
+              transform: videoCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 200ms",
+            }}
+          />
+          <span
+            style={{
+              fontFamily: font.mono,
+              fontSize: 11,
+              lineHeight: "14px",
+              fontWeight: 500,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "inherit",
+            }}
+          >
+            {videoCollapsed ? "Show video" : "Hide video"}
+          </span>
+        </button>
+
+        {/* -- TAB BAR -- */}
         <div
           style={{
             flexShrink: 0,
@@ -666,18 +905,43 @@ export default function ModulePage() {
                     transitionDuration: "var(--duration-fast)",
                     transitionTimingFunction: "var(--ease-out-quart)",
                     marginBottom: -1,
+                    display: "inline-flex",
+                    alignItems: "center",
                   }}
                   onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "var(--color-text-secondary)"; }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "var(--color-text-tertiary)"; }}
                 >
                   {tab}
-                  {count != null && <span style={{ marginLeft: 4 }}>{count}</span>}
+                  {count != null && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 18,
+                        height: 18,
+                        borderRadius: 999,
+                        backgroundColor: "var(--color-bg-surface-3)",
+                        border: "1px solid var(--color-border-subtle)",
+                        fontFamily: font.mono,
+                        fontSize: 10,
+                        lineHeight: "12px",
+                        fontWeight: 500,
+                        letterSpacing: "0.06em",
+                        color: "var(--color-text-tertiary)",
+                        marginLeft: 6,
+                        padding: "0 4px",
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
 
-          {/* Hidden-state reopen button — positioned at right edge of tab bar */}
+          {/* Hidden-state reopen button */}
           {panelState === "hidden" && (
             <button
               onClick={() => setPanelState("expanded")}
@@ -714,7 +978,7 @@ export default function ModulePage() {
           )}
         </div>
 
-        {/* ── TAB CONTENT (scrollable) ── */}
+        {/* -- TAB CONTENT (scrollable) -- */}
         <div
           className="lesson-scroll-area"
           style={{
@@ -786,13 +1050,19 @@ export default function ModulePage() {
                   ))}
                 </div>
               </div>
+
+              <TabProgressHint isComplete={isComplete} />
             </div>
           )}
 
           {/* LESSON TAB */}
           {activeTab === "Lesson" && (
             <div>
-              <Link href={`/learn/${slug}/lesson`} style={{ textDecoration: "none", display: "block" }}>
+              <Link
+                href={`/learn/${slug}/lesson`}
+                onClick={() => setReadLesson(true)}
+                style={{ textDecoration: "none", display: "block" }}
+              >
                 <div
                   style={{
                     backgroundColor: "var(--color-bg-surface)",
@@ -828,6 +1098,16 @@ export default function ModulePage() {
               <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "19px", fontWeight: 400, color: "var(--color-text-tertiary)", margin: 0, marginTop: 16 }}>
                 The lesson opens in a focused reading view. Press &larr; back to return here.
               </p>
+
+              {/* Mark Complete — Lesson tab */}
+              <div style={{ marginTop: 32 }}>
+                <MarkCompleteSection
+                  disabled={!readLesson}
+                  hint="Read the lesson first to mark complete"
+                  isComplete={isComplete}
+                  onMarkComplete={handleMarkComplete}
+                />
+              </div>
             </div>
           )}
 
@@ -865,6 +1145,8 @@ export default function ModulePage() {
                   </div>
                 ))}
               </div>
+
+              <TabProgressHint isComplete={isComplete} />
             </div>
           )}
 
@@ -906,89 +1188,164 @@ export default function ModulePage() {
                   </div>
                 ))}
               </div>
+
+              <TabProgressHint isComplete={isComplete} />
             </div>
           )}
 
           {/* QUESTIONS TAB */}
-          {activeTab === "Questions" && <QuestionsTab onPass={handleQuizPass} />}
-
-          {/* Mark Complete — bottom of scrollable content */}
-          <div style={{ marginTop: 32 }}>
-            {!isComplete ? (
-              <div>
-                <PrimaryButton fullWidth onClick={handleMarkComplete} disabled={!quizPassed}>
-                  Mark Complete
-                </PrimaryButton>
-                {!quizPassed && (
-                  <p style={{ fontFamily: font.mono, fontSize: 11, lineHeight: "14px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)", textAlign: "center", marginTop: 8 }}>
-                    Complete the Questions tab to unlock
-                  </p>
-                )}
-              </div>
-            ) : (
-              <button
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  width: "100%",
-                  height: 40,
-                  borderRadius: 10,
-                  backgroundColor: "var(--color-success-subtle)",
-                  border: "1px solid var(--color-success-border)",
-                  color: "var(--color-success-text)",
-                  fontFamily: font.body,
-                  fontSize: "14.5px",
-                  fontWeight: 500,
-                  cursor: "default",
-                }}
-              >
-                <CheckCircle style={{ width: 16, height: 16 }} />
-                Lesson Complete
-              </button>
-            )}
-          </div>
+          {activeTab === "Questions" && (
+            <QuestionsTab
+              onPass={handleQuizPass}
+              isComplete={isComplete}
+              onMarkComplete={handleMarkComplete}
+            />
+          )}
         </div>
 
-        {/* ── BOTTOM NAV BAR (flex-shrink: 0) ── */}
+        {/* -- BOTTOM NAV BAR -- */}
         <div
           className="lesson-bottom-nav"
           style={{
             flexShrink: 0,
             backgroundColor: "var(--color-bg-surface)",
             borderTop: "1px solid var(--color-border-subtle)",
-            padding: "12px 32px",
+            padding: "12px 24px",
             zIndex: 10,
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 12 }}>
+            {/* LEFT — prev module */}
             <div style={{ minWidth: 0 }}>
               {nav.prev && (
-                <Link href={`/learn/${nav.prev.slug}`} style={{ textDecoration: "none" }}>
-                  <OutlineButton size="small">{`\u2190 ${nav.prev.title}`}</OutlineButton>
+                <Link href={`/learn/${nav.prev.slug}`} style={{ textDecoration: "none", display: "inline-flex" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                      transitionProperty: "opacity",
+                      transitionDuration: "var(--duration-fast)",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.7"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                  >
+                    <ArrowLeft style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontFamily: font.mono,
+                          fontSize: 10,
+                          lineHeight: "12px",
+                          fontWeight: 500,
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          color: "var(--color-text-tertiary)",
+                          display: "block",
+                        }}
+                      >
+                        Previous
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          lineHeight: "18px",
+                          fontWeight: 500,
+                          color: "var(--color-text-primary)",
+                          display: "block",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {nav.prev.title}
+                      </span>
+                    </div>
+                  </div>
                 </Link>
               )}
             </div>
-            <span
-              style={{
-                fontFamily: font.mono,
-                fontSize: 11,
-                lineHeight: "14px",
-                fontWeight: 600,
-                letterSpacing: "0.10em",
-                textTransform: "uppercase",
-                color: "var(--color-text-tertiary)",
-                flexShrink: 0,
-                padding: "0 12px",
-              }}
-            >
-              Module {mod.moduleNumber} of {String(totalModules).padStart(2, "0")}
-            </span>
-            <div style={{ minWidth: 0 }}>
+
+            {/* CENTER — module position */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <span
+                style={{
+                  fontFamily: font.mono,
+                  fontSize: 10,
+                  lineHeight: "12px",
+                  fontWeight: 500,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--color-text-tertiary)",
+                }}
+              >
+                Module
+              </span>
+              <span
+                style={{
+                  fontFamily: font.display,
+                  fontSize: 16,
+                  lineHeight: "22px",
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {mod.moduleNumber} / {String(unitModuleCount).padStart(2, "0")}
+              </span>
+            </div>
+
+            {/* RIGHT — next module */}
+            <div style={{ minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
               {nav.next && (
-                <Link href={`/learn/${nav.next.slug}`} style={{ textDecoration: "none" }}>
-                  <PrimaryButton size="small">{`${nav.next.title} \u2192`}</PrimaryButton>
+                <Link href={`/learn/${nav.next.slug}`} style={{ textDecoration: "none", display: "inline-flex", maxWidth: "100%" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                      transitionProperty: "opacity",
+                      transitionDuration: "var(--duration-fast)",
+                      minWidth: 0,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.7"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                  >
+                    <div style={{ textAlign: "right", minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontFamily: font.mono,
+                          fontSize: 10,
+                          lineHeight: "12px",
+                          fontWeight: 500,
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          color: "var(--color-text-tertiary)",
+                          display: "block",
+                        }}
+                      >
+                        Next
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          lineHeight: "18px",
+                          fontWeight: 500,
+                          color: "var(--color-text-primary)",
+                          display: "block",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {nav.next.title}
+                      </span>
+                    </div>
+                    <ArrowRight style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+                  </div>
                 </Link>
               )}
             </div>
@@ -1014,10 +1371,10 @@ export default function ModulePage() {
           backgroundColor: "var(--color-bg-surface)",
         }}
       >
-        {/* ── EXPANDED STATE ── */}
+        {/* -- EXPANDED STATE -- */}
         {panelState === "expanded" && (
           <>
-            {/* Panel header (flex-shrink: 0) */}
+            {/* Panel header */}
             <div
               style={{
                 flexShrink: 0,
@@ -1111,61 +1468,79 @@ export default function ModulePage() {
               {/* Divider */}
               <div style={{ height: 1, backgroundColor: "var(--color-border-subtle)", margin: "12px 0" }} />
 
-              {/* Navigate */}
+              {/* Navigate — redesigned with cards */}
               <div>
                 <SectionLabel>Navigate</SectionLabel>
-                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 0 }}>
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 16 }}>
                   {nav.prev && (
-                    <Link href={`/learn/${nav.prev.slug}`} style={{ textDecoration: "none" }}>
+                    <Link href={`/learn/${nav.prev.slug}`} style={{ textDecoration: "none", display: "block" }}>
                       <div
                         style={{
-                          padding: "8px 0",
+                          backgroundColor: "var(--color-bg-surface-2)",
+                          border: "1px solid var(--color-border-subtle)",
+                          borderRadius: 14,
+                          padding: "12px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
                           cursor: "pointer",
-                          transitionProperty: "color",
+                          transitionProperty: "background-color, border-color",
                           transitionDuration: "var(--duration-fast)",
                         }}
                         onMouseEnter={(e) => {
-                          const p = e.currentTarget.querySelector("p");
-                          if (p) p.style.color = "var(--color-text-primary)";
+                          e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                          e.currentTarget.style.backgroundColor = "var(--color-bg-surface-3)";
                         }}
                         onMouseLeave={(e) => {
-                          const p = e.currentTarget.querySelector("p");
-                          if (p) p.style.color = "var(--color-text-secondary)";
+                          e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+                          e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
                         }}
                       >
-                        <span style={{ fontFamily: font.mono, fontSize: 10, lineHeight: "12px", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)" }}>
-                          &larr; Prev Module
-                        </span>
-                        <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "18px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 2, transitionProperty: "color", transitionDuration: "var(--duration-fast)" }}>
-                          {nav.prev.title}
-                        </p>
+                        <ArrowLeft style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ fontFamily: font.mono, fontSize: 10, lineHeight: "12px", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)", display: "block" }}>
+                            Previous Module
+                          </span>
+                          <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "18px", fontWeight: 500, color: "var(--color-text-primary)", margin: 0, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {nav.prev.title}
+                          </p>
+                        </div>
                       </div>
                     </Link>
                   )}
                   {nav.next && (
-                    <Link href={`/learn/${nav.next.slug}`} style={{ textDecoration: "none" }}>
+                    <Link href={`/learn/${nav.next.slug}`} style={{ textDecoration: "none", display: "block" }}>
                       <div
                         style={{
-                          padding: "8px 0",
+                          backgroundColor: "var(--color-bg-surface-2)",
+                          border: "1px solid var(--color-border-subtle)",
+                          borderRadius: 14,
+                          padding: "12px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
                           cursor: "pointer",
-                          transitionProperty: "color",
+                          transitionProperty: "background-color, border-color",
                           transitionDuration: "var(--duration-fast)",
                         }}
                         onMouseEnter={(e) => {
-                          const p = e.currentTarget.querySelector("p");
-                          if (p) p.style.color = "var(--color-text-primary)";
+                          e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                          e.currentTarget.style.backgroundColor = "var(--color-bg-surface-3)";
                         }}
                         onMouseLeave={(e) => {
-                          const p = e.currentTarget.querySelector("p");
-                          if (p) p.style.color = "var(--color-text-secondary)";
+                          e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+                          e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
                         }}
                       >
-                        <span style={{ fontFamily: font.mono, fontSize: 10, lineHeight: "12px", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)" }}>
-                          Next Module &rarr;
-                        </span>
-                        <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "18px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 2, transitionProperty: "color", transitionDuration: "var(--duration-fast)" }}>
-                          {nav.next.title}
-                        </p>
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ fontFamily: font.mono, fontSize: 10, lineHeight: "12px", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)", display: "block" }}>
+                            Next Module
+                          </span>
+                          <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "18px", fontWeight: 500, color: "var(--color-text-primary)", margin: 0, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {nav.next.title}
+                          </p>
+                        </div>
+                        <ArrowRight style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
                       </div>
                     </Link>
                   )}
@@ -1175,25 +1550,23 @@ export default function ModulePage() {
           </>
         )}
 
-        {/* ── COLLAPSED STATE ── */}
+        {/* -- COLLAPSED STATE -- */}
         {panelState === "collapsed" && (
           <>
-            {/* Just the toggle button centered at top */}
             <div style={{ flexShrink: 0, padding: 10, display: "flex", justifyContent: "center" }}>
               <PanelToggle onClick={togglePanel} expanded={false} />
             </div>
 
-            {/* Icons stacked */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 16 }}>
-              <IconWithTooltip icon={BookOpen} label="Lesson list" onClick={() => setPanelState("expanded")} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 0" }}>
+              <IconWithTooltip icon={BookOpen} label="Lesson navigator" onClick={() => setPanelState("expanded")} />
               {nav.prev && (
                 <Link href={`/learn/${nav.prev.slug}`} style={{ textDecoration: "none" }}>
-                  <IconWithTooltip icon={ArrowLeft} label={`Previous: ${nav.prev.title}`} />
+                  <IconWithTooltip icon={ArrowLeft} label={`Previous module: ${nav.prev.title}`} />
                 </Link>
               )}
               {nav.next && (
                 <Link href={`/learn/${nav.next.slug}`} style={{ textDecoration: "none" }}>
-                  <IconWithTooltip icon={ArrowRight} label={`Next: ${nav.next.title}`} />
+                  <IconWithTooltip icon={ArrowRight} label={`Next module: ${nav.next.title}`} />
                 </Link>
               )}
             </div>

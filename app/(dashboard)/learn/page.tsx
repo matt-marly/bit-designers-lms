@@ -20,7 +20,7 @@ function getStatusPill(status: ModuleStatus) {
     case "passed":
       return <StatusPill label="Complete" variant="success" />;
     case "in-progress":
-      return <StatusPill label="In Progress" variant="indigo" />;
+      return <StatusPill label="In Progress" variant="warning" />;
     case "not-started":
       return <StatusPill label="Not Started" variant="neutral" />;
   }
@@ -75,7 +75,7 @@ export default function LearnPage() {
               height: 3,
               width: "100%",
               borderRadius: "var(--radius-full)",
-              backgroundColor: "var(--color-bg-surface-2)",
+              backgroundColor: "var(--color-bg-surface-3)",
               overflow: "hidden",
             }}
           >
@@ -183,7 +183,7 @@ export default function LearnPage() {
                         backgroundColor: "var(--color-bg-surface)",
                         border: "1px solid var(--color-border-subtle)",
                         borderRadius: 14,
-                        padding: 20,
+                        padding: "20px 24px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -217,38 +217,53 @@ export default function LearnPage() {
                         >
                           {mod.title}
                         </p>
-                        {showGating && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            marginTop: 6,
+                          }}
+                        >
                           <span
                             style={{
                               fontFamily: font.mono,
                               fontSize: 11,
                               lineHeight: "14px",
-                              fontWeight: 500,
-                              letterSpacing: "0.06em",
+                              fontWeight: 600,
+                              letterSpacing: "0.10em",
                               textTransform: "uppercase",
                               color: "var(--color-text-tertiary)",
-                              marginTop: 4,
-                              display: "block",
                             }}
                           >
-                            Complete the previous module first for best results
+                            Unit {unit.number} · {unit.title}
                           </span>
-                        )}
-                        <span
-                          style={{
-                            fontFamily: font.mono,
-                            fontSize: 11,
-                            lineHeight: "14px",
-                            fontWeight: 500,
-                            letterSpacing: "0.06em",
-                            textTransform: "uppercase",
-                            color: "var(--color-text-tertiary)",
-                            marginTop: showGating ? 2 : 6,
-                            display: "block",
-                          }}
-                        >
-                          Unit {unit.number} · {unit.title}
-                        </span>
+                          {showGating && (
+                            <>
+                              <span
+                                style={{
+                                  width: 1,
+                                  height: 10,
+                                  backgroundColor: "var(--color-border-subtle)",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span
+                                style={{
+                                  fontFamily: font.mono,
+                                  fontSize: 10,
+                                  lineHeight: "12px",
+                                  fontWeight: 500,
+                                  letterSpacing: "0.06em",
+                                  textTransform: "uppercase",
+                                  color: "var(--color-text-tertiary)",
+                                }}
+                              >
+                                Complete previous module first
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
