@@ -1,21 +1,21 @@
 export const tokens = {
   colors: {
-    // Fill in from brand assets when ready.
-    // Placeholders for now — we will replace in art direction stage.
-    background: '#0A0A0A',
+    background: '#090909',
     surface: '#111111',
     surfaceElevated: '#1A1A1A',
-    border: '#222222',
+    border: '#242424',
     borderSubtle: '#1A1A1A',
-    textPrimary: '#F5F5F5',
-    textSecondary: '#A0A0A0',
+    textPrimary: '#FFFFFF',
+    textSecondary: '#B5B5B5',
     textMuted: '#555555',
-    accent: '#F7931A',       // Bitcoin orange — use sparingly
+    accent: '#F7931A',
     accentSubtle: '#1A1100',
+    indigo: '#6366F1',
+    indigoSubtle: '#1E1B4B',
     success: '#22C55E',
-    warning: '#EAB308',
+    warning: '#F59E0B',
     error: '#EF4444',
-    info: '#3B82F6',
+    info: '#4F8CFF',
   },
   radius: {
     sm: '4px',
@@ -24,15 +24,9 @@ export const tokens = {
     xl: '16px',
     full: '9999px',
   },
-  font: {
-    sans: 'var(--font-sans)',
-    mono: 'var(--font-mono)',
-  },
   spacing: {
-    page: '1rem',         // mobile page padding
-    pageDesktop: '2rem',  // desktop page padding
+    page: '16px',
+    pageDesktop: '32px',
     maxWidth: '1200px',
   },
 } as const
-
-export type Tokens = typeof tokens

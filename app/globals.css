@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-body);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -47,21 +47,23 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Brand tokens — extends Tailwind under brand-* namespace */
-  --color-brand-bg: #0A0A0A;
+  /* Brand token colors */
+  --color-brand-background: #090909;
   --color-brand-surface: #111111;
   --color-brand-surface-elevated: #1A1A1A;
-  --color-brand-border: #222222;
+  --color-brand-border: #242424;
   --color-brand-border-subtle: #1A1A1A;
-  --color-brand-text-primary: #F5F5F5;
-  --color-brand-text-secondary: #A0A0A0;
+  --color-brand-text-primary: #FFFFFF;
+  --color-brand-text-secondary: #B5B5B5;
   --color-brand-text-muted: #555555;
   --color-brand-accent: #F7931A;
   --color-brand-accent-subtle: #1A1100;
+  --color-brand-indigo: #6366F1;
+  --color-brand-indigo-subtle: #1E1B4B;
   --color-brand-success: #22C55E;
-  --color-brand-warning: #EAB308;
+  --color-brand-warning: #F59E0B;
   --color-brand-error: #EF4444;
-  --color-brand-info: #3B82F6;
+  --color-brand-info: #4F8CFF;
 
   /* Brand radius */
   --radius-brand-sm: 4px;
@@ -71,55 +73,85 @@
   --radius-brand-full: 9999px;
 
   /* Brand spacing */
-  --spacing-brand-page: 1rem;
-  --spacing-brand-page-desktop: 2rem;
+  --spacing-brand-page: 16px;
+  --spacing-brand-page-desktop: 32px;
   --max-w-brand: 1200px;
 }
 
 :root {
-  --background: #0A0A0A;
-  --foreground: #F5F5F5;
+  /* Token CSS variables */
+  --color-background-val: #090909;
+  --color-surface: #111111;
+  --color-surface-elevated: #1A1A1A;
+  --color-border-val: #242424;
+  --color-border-subtle: #1A1A1A;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #B5B5B5;
+  --color-text-muted: #555555;
+  --color-accent-val: #F7931A;
+  --color-accent-subtle: #1A1100;
+  --color-indigo: #6366F1;
+  --color-indigo-subtle: #1E1B4B;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-error-val: #EF4444;
+  --color-info: #4F8CFF;
+
+  /* shadcn theme variables */
+  --background: #090909;
+  --foreground: #FFFFFF;
   --card: #111111;
-  --card-foreground: #F5F5F5;
+  --card-foreground: #FFFFFF;
   --popover: #111111;
-  --popover-foreground: #F5F5F5;
-  --primary: #F5F5F5;
-  --primary-foreground: #0A0A0A;
+  --popover-foreground: #FFFFFF;
+  --primary: #FFFFFF;
+  --primary-foreground: #090909;
   --secondary: #1A1A1A;
-  --secondary-foreground: #F5F5F5;
+  --secondary-foreground: #FFFFFF;
   --muted: #1A1A1A;
-  --muted-foreground: #A0A0A0;
+  --muted-foreground: #B5B5B5;
   --accent: #1A1A1A;
-  --accent-foreground: #F5F5F5;
+  --accent-foreground: #FFFFFF;
   --destructive: #EF4444;
-  --border: #222222;
-  --input: #222222;
-  --ring: #F7931A;
+  --border: #242424;
+  --input: #242424;
+  --ring: #6366F1;
   --chart-1: #F7931A;
   --chart-2: #22C55E;
-  --chart-3: #3B82F6;
-  --chart-4: #EAB308;
+  --chart-3: #4F8CFF;
+  --chart-4: #F59E0B;
   --chart-5: #EF4444;
   --radius: 0.5rem;
   --sidebar: #111111;
-  --sidebar-foreground: #F5F5F5;
-  --sidebar-primary: #F5F5F5;
-  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #090909;
   --sidebar-accent: #1A1A1A;
-  --sidebar-accent-foreground: #F5F5F5;
-  --sidebar-border: #222222;
-  --sidebar-ring: #F7931A;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #242424;
+  --sidebar-ring: #6366F1;
 }
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-brand-bg text-brand-text-primary antialiased;
-    font-family: var(--font-sans);
-  }
+
   html {
-    @apply font-sans;
+    background-color: #090909;
+  }
+
+  body {
+    background-color: #090909;
+    color: #FFFFFF;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   }
 }
