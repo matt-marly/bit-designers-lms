@@ -170,6 +170,22 @@ export function getMissionBySlug(slug: string): Mission | undefined {
   return mockMissions.find((m) => m.slug === slug);
 }
 
+export function getAdjacentMissions(slug: string): {
+  prev: Mission | null;
+  next: Mission | null;
+  currentIndex: number;
+  total: number;
+} {
+  const sorted = [...mockMissions].sort((a, b) => a.number.localeCompare(b.number));
+  const idx = sorted.findIndex((m) => m.slug === slug);
+  return {
+    prev: idx > 0 ? sorted[idx - 1] : null,
+    next: idx < sorted.length - 1 ? sorted[idx + 1] : null,
+    currentIndex: idx,
+    total: sorted.length,
+  };
+}
+
 export function getMissionStats() {
   let passed = 0;
   let needsRevision = 0;
