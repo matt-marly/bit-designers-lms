@@ -35,6 +35,20 @@ export default function LearnPage() {
     return () => clearTimeout(timer);
   }, [complete, total]);
 
+  // Build a flat list to check previous module status for soft gating
+  const allModules = mockUnits.flatMap((unit) =>
+    unit.modules.map((mod) => ({ ...mod, unitId: unit.id }))
+  );
+
+  function shouldShowGatingHint(moduleSlug: string): boolean {
+    const idx = allModules.findIndex((m) => m.slug === moduleSlug);
+    if (idx <= 0) return false;
+    const prev = allModules[idx - 1];
+    const current = allModules[idx];
+    if (current.status !== "not-started") return false;
+    return prev.status !== "passed";
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
       {/* Page Header + Progress */}
@@ -61,7 +75,7 @@ export default function LearnPage() {
               height: 3,
               width: "100%",
               borderRadius: "var(--radius-full)",
-              backgroundColor: "var(--color-bg-surface-3)",
+              backgroundColor: "var(--color-bg-surface-2)",
               overflow: "hidden",
             }}
           >
@@ -122,7 +136,7 @@ export default function LearnPage() {
               </span>
             </div>
 
-            {/* Advisory lock banner */}
+            {/* Advisory lock banner — only Unit 03 */}
             {unit.locked && unit.lockMessage && (
               <div
                 style={{
@@ -156,77 +170,97 @@ export default function LearnPage() {
 
             {/* Module cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {unit.modules.map((mod) => (
-                <Link
-                  key={mod.slug}
-                  href={`/learn/${mod.slug}`}
-                  style={{ textDecoration: "none", display: "block" }}
-                >
-                  <div
-                    style={{
-                      backgroundColor: "var(--color-bg-surface)",
-                      border: "1px solid var(--color-border-subtle)",
-                      borderRadius: 14,
-                      padding: 20,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 16,
-                      cursor: "pointer",
-                      transitionProperty: "background-color, border-color",
-                      transitionDuration: "var(--duration-fast)",
-                      transitionTimingFunction: "var(--ease-out-quart)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
-                      e.currentTarget.style.borderColor = "var(--color-border-strong)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
-                      e.currentTarget.style.borderColor = "var(--color-border-subtle)";
-                    }}
+              {unit.modules.map((mod) => {
+                const showGating = shouldShowGatingHint(mod.slug);
+                return (
+                  <Link
+                    key={mod.slug}
+                    href={`/learn/${mod.slug}`}
+                    style={{ textDecoration: "none", display: "block" }}
                   >
-                    <div style={{ minWidth: 0 }}>
-                      <SectionLabel>{`Module ${mod.number}`}</SectionLabel>
-                      <p
-                        style={{
-                          fontFamily: font.display,
-                          fontSize: 16,
-                          lineHeight: "22px",
-                          fontWeight: 600,
-                          color: "var(--color-text-primary)",
-                          margin: 0,
-                          marginTop: 4,
-                        }}
-                      >
-                        {mod.title}
-                      </p>
-                      <span
-                        style={{
-                          fontFamily: font.mono,
-                          fontSize: 11,
-                          lineHeight: "14px",
-                          fontWeight: 500,
-                          letterSpacing: "0.06em",
-                          textTransform: "uppercase",
-                          color: "var(--color-text-tertiary)",
-                          marginTop: 6,
-                          display: "block",
-                        }}
-                      >
-                        Unit {unit.number} · {unit.title}
-                      </span>
-                    </div>
+                    <div
+                      style={{
+                        backgroundColor: "var(--color-bg-surface)",
+                        border: "1px solid var(--color-border-subtle)",
+                        borderRadius: 14,
+                        padding: 20,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 16,
+                        cursor: "pointer",
+                        transitionProperty: "background-color, border-color",
+                        transitionDuration: "var(--duration-fast)",
+                        transitionTimingFunction: "var(--ease-out-quart)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+                        e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+                        e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <SectionLabel>{`Module ${mod.number}`}</SectionLabel>
+                        <p
+                          style={{
+                            fontFamily: font.display,
+                            fontSize: 16,
+                            lineHeight: "22px",
+                            fontWeight: 600,
+                            color: "var(--color-text-primary)",
+                            margin: 0,
+                            marginTop: 4,
+                          }}
+                        >
+                          {mod.title}
+                        </p>
+                        {showGating && (
+                          <span
+                            style={{
+                              fontFamily: font.mono,
+                              fontSize: 11,
+                              lineHeight: "14px",
+                              fontWeight: 500,
+                              letterSpacing: "0.06em",
+                              textTransform: "uppercase",
+                              color: "var(--color-text-tertiary)",
+                              marginTop: 4,
+                              display: "block",
+                            }}
+                          >
+                            Complete the previous module first for best results
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontFamily: font.mono,
+                            fontSize: 11,
+                            lineHeight: "14px",
+                            fontWeight: 500,
+                            letterSpacing: "0.06em",
+                            textTransform: "uppercase",
+                            color: "var(--color-text-tertiary)",
+                            marginTop: showGating ? 2 : 6,
+                            display: "block",
+                          }}
+                        >
+                          Unit {unit.number} · {unit.title}
+                        </span>
+                      </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                      {getStatusPill(mod.status)}
-                      <ChevronRight
-                        style={{ width: 16, height: 16, color: "var(--color-text-tertiary)" }}
-                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                        {getStatusPill(mod.status)}
+                        <ChevronRight
+                          style={{ width: 16, height: 16, color: "var(--color-text-tertiary)" }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </section>
         );

@@ -6,6 +6,7 @@ interface ButtonProps {
   onClick?: () => void;
   fullWidth?: boolean;
   size?: "default" | "small" | "large";
+  disabled?: boolean;
 }
 
 const sizeMap = {
@@ -14,11 +15,12 @@ const sizeMap = {
   large: { height: 48, padding: "0 20px", iconSize: 18 },
 } as const;
 
-export function PrimaryButton({ children, icon: Icon, onClick, fullWidth, size = "default" }: ButtonProps) {
+export function PrimaryButton({ children, icon: Icon, onClick, fullWidth, size = "default", disabled }: ButtonProps) {
   const s = sizeMap[size];
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className="inline-flex items-center justify-center transition-colors"
       style={{
         height: s.height,
@@ -32,15 +34,16 @@ export function PrimaryButton({ children, icon: Icon, onClick, fullWidth, size =
         fontWeight: 500,
         gap: 8,
         border: "none",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quart)",
         width: fullWidth ? "100%" : undefined,
+        opacity: disabled ? 0.4 : 1,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-indigo-hover)")}
-      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-indigo)")}
-      onMouseDown={(e) => (e.currentTarget.style.backgroundColor = "var(--color-indigo-active)")}
-      onMouseUp={(e) => (e.currentTarget.style.backgroundColor = "var(--color-indigo-hover)")}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "var(--color-indigo-hover)"; }}
+      onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "var(--color-indigo)"; }}
+      onMouseDown={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "var(--color-indigo-active)"; }}
+      onMouseUp={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "var(--color-indigo-hover)"; }}
     >
       {Icon && <Icon style={{ width: s.iconSize, height: s.iconSize }} />}
       {children}
@@ -48,11 +51,12 @@ export function PrimaryButton({ children, icon: Icon, onClick, fullWidth, size =
   );
 }
 
-export function OutlineButton({ children, icon: Icon, onClick, fullWidth, size = "default" }: ButtonProps) {
+export function OutlineButton({ children, icon: Icon, onClick, fullWidth, size = "default", disabled }: ButtonProps) {
   const s = sizeMap[size];
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className="inline-flex items-center justify-center transition-colors"
       style={{
         height: s.height,
@@ -66,21 +70,26 @@ export function OutlineButton({ children, icon: Icon, onClick, fullWidth, size =
         lineHeight: "22px",
         fontWeight: 500,
         gap: 8,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quart)",
         width: fullWidth ? "100%" : undefined,
+        opacity: disabled ? 0.4 : 1,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+        if (!disabled) {
+          e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+        }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "transparent";
-        e.currentTarget.style.borderColor = "var(--color-border-strong)";
+        if (!disabled) {
+          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.borderColor = "var(--color-border-strong)";
+        }
       }}
-      onMouseDown={(e) => (e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)")}
-      onMouseUp={(e) => (e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)")}
+      onMouseDown={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
+      onMouseUp={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"; }}
     >
       {Icon && <Icon style={{ width: s.iconSize, height: s.iconSize }} />}
       {children}

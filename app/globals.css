@@ -211,16 +211,37 @@
   }
 }
 
-/* Lesson page: hide right sidebar and bottom nav below 1024px */
+/* Custom thin scrollbar for lesson page columns */
+.lesson-scroll-area::-webkit-scrollbar {
+  width: 4px;
+}
+.lesson-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lesson-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--color-bg-surface-3);
+  border-radius: 4px;
+}
+.lesson-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}
+/* Firefox scrollbar */
+.lesson-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-bg-surface-3) transparent;
+}
+
+/* Lesson page: hide right sidebar and reopen button below 1024px */
 @media (max-width: 1023px) {
   .lesson-right-col {
     display: none !important;
   }
-  .lesson-left-col {
-    padding-right: 0 !important;
-  }
-  .lesson-bottom-nav {
+  .lesson-reopen-btn {
     display: none !important;
+  }
+  .lesson-viewport {
+    margin-left: -20px !important;
+    margin-right: -20px !important;
   }
 }
 
