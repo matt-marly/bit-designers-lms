@@ -50,7 +50,7 @@ export default function LearnPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
+    <div style={{ maxWidth: 880, margin: "0 auto", display: "flex", flexDirection: "column", gap: 48 }}>
       {/* Page Header + Progress */}
       <div>
         <PageHeader title="Learn" context="Design Lab · Bitcoin Foundations" />

@@ -203,6 +203,16 @@
   }
 }
 
+/* Dashboard main content padding */
+.dashboard-main {
+  padding: 24px 20px;
+}
+@media (min-width: 768px) {
+  .dashboard-main {
+    padding: 48px 32px;
+  }
+}
+
 /* §4.9 PageHeader: display-xl drops to 28px/34px on mobile */
 @media (max-width: 768px) {
   .home-page-wrap {
@@ -246,9 +256,28 @@
 }
 
 /* Missions directory grid: cell-style with border separation */
-.missions-dir-grid {
+.missions-dir-grid,
+.missions-dir-grid-2 {
   display: grid;
+}
+.missions-dir-grid {
   grid-template-columns: repeat(3, 1fr);
+}
+.missions-dir-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.missions-dir-grid-2 > * {
+  border-right: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.missions-dir-grid-2 > *:nth-child(2n) {
+  border-right: none;
+}
+.missions-dir-grid-2 > *:last-child {
+  border-bottom: none;
+}
+.missions-dir-grid-2 > *:nth-last-child(2):nth-child(odd) {
+  border-bottom: none;
 }
 .missions-dir-grid > * {
   border-right: 1px solid var(--color-border-subtle);
@@ -285,6 +314,15 @@
   }
 }
 @media (max-width: 640px) {
+  .missions-dir-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .missions-dir-grid-2 > * {
+    border-right: none;
+  }
+  .missions-dir-grid-2 > *:last-child {
+    border-bottom: none;
+  }
   .missions-dir-grid {
     grid-template-columns: 1fr;
   }

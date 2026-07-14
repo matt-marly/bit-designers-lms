@@ -309,6 +309,7 @@ export default function HomePage() {
       transition={spring}
       style={{
         maxWidth: 880,
+        margin: "0 auto",
         display: "flex",
         flexDirection: "column",
         gap: 48,

@@ -13,12 +13,10 @@ export default function DashboardLayout({
       <MobileNav />
 
       <main
-        className="min-h-screen pb-20 md:pb-0 md:ml-[260px]"
-        style={{ flex: 1, overflowY: "auto", padding: "48px 32px" }}
+        className="dashboard-main min-h-screen pb-20 md:pb-0 md:ml-[260px]"
+        style={{ flex: 1, overflowY: "auto" }}
       >
-        <div style={{ maxWidth: 880, margin: "0 auto" }}>
-          <PageTransition>{children}</PageTransition>
-        </div>
+        <PageTransition>{children}</PageTransition>
       </main>
     </div>
   );

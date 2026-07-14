@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Calendar, ChevronRight, ClipboardList, MessageSquare } from "lucide-react";
-import { SectionLabel } from "@/components/ui/custom/section-label";
+import { Calendar, ChevronRight, ClipboardList, MessageSquare, CheckCircle } from "lucide-react";
 import { StatusPill } from "@/components/ui/custom/status-pill";
-import { mockMissions, getMissionStats } from "@/lib/mock-missions-data";
+import { mockMissions } from "@/lib/mock-missions-data";
 import type { Mission, MissionStatus } from "@/lib/mock-missions-data";
 
 const font = {
@@ -34,18 +33,27 @@ function getStatusPillProps(status: MissionStatus): {
   }
 }
 
-function formatDueDate(dateStr: string, status: MissionStatus): { text: string; color: string } {
+function getDueMeta(dateStr: string, status: MissionStatus): { text: string; color: string } {
+  if (status === "passed") {
+    return { text: "COMPLETED", color: "var(--color-success-text)" };
+  }
+  if (status === "submitted" || status === "in-review") {
+    return { text: "SUBMITTED", color: "var(--color-indigo-text)" };
+  }
+
   const due = new Date(dateStr + "T23:59:59");
   const now = new Date();
   const diffMs = due.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
   const formatted = new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
 
-  if (diffDays < 0 && status !== "passed") {
+  if (status === "needs-revision" && diffDays < 0) {
+    return { text: `OVERDUE · ${formatted}`, color: "var(--color-warning-text)" };
+  }
+  if (status === "not-started" && diffDays < 0) {
     return { text: `OVERDUE · ${formatted}`, color: "var(--color-danger-text)" };
   }
   if (diffDays <= 3) {
@@ -65,44 +73,6 @@ function filterMissions(missions: Mission[], filter: FilterMode): Mission[] {
     case "passed":
       return missions.filter((m) => m.status === "passed");
   }
-}
-
-function StatPill({ dot, label }: { dot: string; label: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: "var(--color-bg-surface-2)",
-        border: "1px solid var(--color-border-subtle)",
-        borderRadius: 999,
-        padding: "6px 14px",
-      }}
-    >
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          backgroundColor: dot,
-          flexShrink: 0,
-        }}
-      />
-      <span
-        style={{
-          fontFamily: font.mono,
-          fontSize: 11,
-          lineHeight: "14px",
-          fontWeight: 500,
-          color: "var(--color-text-secondary)",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {label}
-      </span>
-    </span>
-  );
 }
 
 function FilterPill({
@@ -153,32 +123,18 @@ function FilterPill({
   );
 }
 
-function SectionEmptyState({ filterLabel }: { filterLabel: string }) {
-  return (
-    <div
-      style={{
-        padding: 32,
-        textAlign: "center",
-      }}
-    >
-      <p
-        style={{
-          fontFamily: font.mono,
-          fontSize: 13,
-          lineHeight: "18px",
-          fontWeight: 500,
-          color: "var(--color-text-tertiary)",
-          margin: 0,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {`No ${filterLabel} missions in this section`}
-      </p>
-    </div>
-  );
-}
+function EmptyState({ filter }: { filter: FilterMode }) {
+  const titleMap: Record<FilterMode, string> = {
+    all: "No missions yet",
+    pending: "No pending missions",
+    passed: "No passed missions",
+  };
+  const bodyMap: Record<FilterMode, string> = {
+    all: "Missions will appear here as your cohort progresses.",
+    pending: "All caught up. No missions need your attention right now.",
+    passed: "Completed missions will appear here once reviewed.",
+  };
 
-function EmptyState() {
   return (
     <div
       style={{
@@ -188,7 +144,7 @@ function EmptyState() {
         justifyContent: "center",
         maxWidth: 360,
         margin: "0 auto",
-        padding: "48px 24px",
+        padding: "64px 24px",
       }}
     >
       <div
@@ -220,7 +176,7 @@ function EmptyState() {
           textAlign: "center",
         }}
       >
-        No missions yet
+        {titleMap[filter]}
       </p>
       <p
         style={{
@@ -234,87 +190,53 @@ function EmptyState() {
           textAlign: "center",
         }}
       >
-        Missions will appear here as your cohort progresses.
+        {bodyMap[filter]}
       </p>
     </div>
   );
 }
 
-function MissionTypeBadge({ type }: { type: "reviewed" | "completion-only" }) {
-  const isReviewed = type === "reviewed";
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        height: 20,
-        padding: "3px 8px",
-        borderRadius: 999,
-        backgroundColor: isReviewed
-          ? "var(--color-indigo-subtle)"
-          : "var(--color-bg-surface-3)",
-        border: `1px solid ${isReviewed ? "var(--color-indigo-border)" : "var(--color-border-subtle)"}`,
-        fontFamily: font.mono,
-        fontSize: 10,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        color: isReviewed
-          ? "var(--color-indigo-text)"
-          : "var(--color-text-tertiary)",
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
-      {isReviewed ? "REVIEWED" : "COMPLETION"}
-    </span>
-  );
-}
-
 function MissionCell({ mission }: { mission: Mission }) {
   const statusProps = getStatusPillProps(mission.status);
-  const due = formatDueDate(mission.dueAt, mission.status);
+  const due = getDueMeta(mission.dueAt, mission.status);
   const showFeedback = mission.status === "needs-revision";
+  const isReviewed = mission.type === "reviewed";
 
   return (
     <Link
       href={`/missions/${mission.slug}`}
-      className="missions-cell"
       style={{ textDecoration: "none", display: "block", height: "100%" }}
     >
       <div
         style={{
           backgroundColor: "var(--color-bg-surface)",
-          padding: 20,
+          padding: 24,
           cursor: "pointer",
           display: "flex",
           flexDirection: "column",
           height: "100%",
+          minHeight: 180,
           transitionProperty: "background-color",
           transitionDuration: "var(--duration-fast)",
           transitionTimingFunction: "var(--ease-out-quart)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+          e.currentTarget.style.backgroundColor = "#1C1C1C";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
         }}
       >
-        {/* TOP ROW — Tags */}
+        {/* TOP ROW — Mission number + Status */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "flex-start",
             gap: 8,
           }}
         >
-          <MissionTypeBadge type={mission.type} />
-          <StatusPill label={statusProps.label} variant={statusProps.variant} />
-        </div>
-
-        {/* Mission number + title */}
-        <div style={{ marginTop: 12 }}>
-          <p
+          <span
             style={{
               fontFamily: font.mono,
               fontSize: 10,
@@ -323,32 +245,35 @@ function MissionCell({ mission }: { mission: Mission }) {
               letterSpacing: "0.06em",
               textTransform: "uppercase",
               color: "var(--color-text-tertiary)",
-              margin: 0,
               fontVariantNumeric: "tabular-nums",
+              marginTop: 6,
             }}
           >
             {`MISSION ${mission.number}`}
-          </p>
-          <p
-            style={{
-              fontFamily: font.display,
-              fontSize: 15,
-              lineHeight: "20px",
-              fontWeight: 600,
-              color: "var(--color-text-primary)",
-              margin: 0,
-              marginTop: 4,
-              overflow: "hidden",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-            }}
-          >
-            {mission.title}
-          </p>
+          </span>
+          <StatusPill label={statusProps.label} variant={statusProps.variant} />
         </div>
 
-        {/* Module */}
+        {/* Title */}
+        <p
+          style={{
+            fontFamily: font.display,
+            fontSize: 15,
+            lineHeight: "22px",
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+            margin: 0,
+            marginTop: 12,
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+          }}
+        >
+          {mission.title}
+        </p>
+
+        {/* Module tag */}
         <p
           style={{
             fontFamily: font.mono,
@@ -358,15 +283,43 @@ function MissionCell({ mission }: { mission: Mission }) {
             textTransform: "uppercase",
             color: "var(--color-text-tertiary)",
             margin: 0,
-            marginTop: 6,
+            marginTop: 8,
             fontVariantNumeric: "tabular-nums",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            maxWidth: "100%",
           }}
         >
           {mission.module}
         </p>
+
+        {/* Type indicator */}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            alignSelf: "flex-start",
+            height: 20,
+            padding: "3px 8px",
+            borderRadius: 999,
+            backgroundColor: isReviewed
+              ? "var(--color-indigo-subtle)"
+              : "var(--color-bg-surface-3)",
+            border: `1px solid ${isReviewed ? "var(--color-indigo-border)" : "var(--color-border-subtle)"}`,
+            fontFamily: font.mono,
+            fontSize: 10,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            color: isReviewed
+              ? "var(--color-indigo-text)"
+              : "var(--color-text-tertiary)",
+            fontVariantNumeric: "tabular-nums",
+            marginTop: 8,
+          }}
+        >
+          {isReviewed ? "Mentor reviewed" : "Completion only"}
+        </span>
 
         {/* SPACER */}
         <div style={{ flex: 1 }} />
@@ -376,7 +329,7 @@ function MissionCell({ mission }: { mission: Mission }) {
           style={{
             marginTop: 16,
             borderTop: "1px solid var(--color-border-subtle)",
-            paddingTop: 12,
+            paddingTop: 14,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -384,9 +337,15 @@ function MissionCell({ mission }: { mission: Mission }) {
         >
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <Calendar
-                style={{ width: 12, height: 12, color: due.color, flexShrink: 0 }}
-              />
+              {mission.status === "passed" ? (
+                <CheckCircle
+                  style={{ width: 12, height: 12, color: due.color, flexShrink: 0 }}
+                />
+              ) : (
+                <Calendar
+                  style={{ width: 12, height: 12, color: due.color, flexShrink: 0 }}
+                />
+              )}
               <span
                 style={{
                   fontFamily: font.mono,
@@ -430,7 +389,7 @@ function MissionCell({ mission }: { mission: Mission }) {
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  Feedback
+                  Feedback received
                 </span>
               </div>
             )}
@@ -450,97 +409,17 @@ function MissionCell({ mission }: { mission: Mission }) {
   );
 }
 
-function MissionSection({
-  label,
-  description,
-  missions,
-  filter,
-  allCount,
-}: {
-  label: string;
-  description: string;
-  missions: Mission[];
-  filter: FilterMode;
-  allCount: number;
-}) {
-  const filterLabel = filter === "all" ? "" : filter;
-
-  return (
-    <div>
-      {/* Section header */}
-      <div
-        style={{
-          padding: "24px 24px 16px 24px",
-          borderBottom: missions.length > 0 ? "1px solid var(--color-border-subtle)" : "none",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-        }}
-      >
-        <div>
-          <SectionLabel>{label}</SectionLabel>
-          <p
-            style={{
-              fontFamily: font.body,
-              fontSize: 13,
-              lineHeight: "19px",
-              fontWeight: 400,
-              color: "var(--color-text-tertiary)",
-              margin: 0,
-              marginTop: 4,
-            }}
-          >
-            {description}
-          </p>
-        </div>
-        <span
-          style={{
-            fontFamily: font.mono,
-            fontSize: 11,
-            lineHeight: "14px",
-            fontWeight: 600,
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
-            color: "var(--color-text-tertiary)",
-            flexShrink: 0,
-            marginTop: 2,
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {`${allCount} mission${allCount !== 1 ? "s" : ""}`}
-        </span>
-      </div>
-
-      {/* Grid or empty */}
-      {allCount === 0 ? (
-        <EmptyState />
-      ) : missions.length === 0 ? (
-        <SectionEmptyState filterLabel={filterLabel} />
-      ) : (
-        <div className="missions-dir-grid">
-          {missions.map((mission) => (
-            <MissionCell key={mission.slug} mission={mission} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function MissionsPage() {
   const [filter, setFilter] = useState<FilterMode>("all");
-  const stats = getMissionStats();
 
-  const allReviewed = mockMissions.filter((m) => m.type === "reviewed");
-  const allCompletion = mockMissions.filter((m) => m.type === "completion-only");
-
-  const filteredReviewed = filterMissions(allReviewed, filter);
-  const filteredCompletion = filterMissions(allCompletion, filter);
+  const sortedMissions = [...mockMissions].sort(
+    (a, b) => a.number.localeCompare(b.number)
+  );
+  const filtered = filterMissions(sortedMissions, filter);
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto" }}>
-      {/* PAGE HEADER — directory style */}
+      {/* PAGE HEADER */}
       <header>
         {/* Context line */}
         <p
@@ -559,12 +438,12 @@ export default function MissionsPage() {
           DESIGN LAB · COHORT 01 · WEEK 03
         </p>
 
-        {/* Main title */}
+        {/* Title */}
         <h1
           style={{
             fontFamily: font.display,
-            fontSize: 36,
-            lineHeight: 1.2,
+            fontSize: 44,
+            lineHeight: 1.1,
             fontWeight: 600,
             letterSpacing: "-0.02em",
             color: "var(--color-text-primary)",
@@ -584,73 +463,35 @@ export default function MissionsPage() {
             color: "var(--color-text-secondary)",
             margin: 0,
             marginTop: 8,
-            maxWidth: 560,
+            maxWidth: 520,
           }}
         >
           Your weekly deliverables. Submit your work, receive mentor feedback, and build your Bitcoin design portfolio.
         </p>
 
-        {/* Utility row */}
+        {/* Filter row */}
         <div
-          className="missions-utility-row"
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            gap: 8,
             marginTop: 20,
-            gap: 16,
           }}
         >
-          {/* Left — stat pills */}
-          <div
+          <span
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
+              fontFamily: font.mono,
+              fontSize: 11,
+              lineHeight: "14px",
+              fontWeight: 500,
+              color: "var(--color-text-tertiary)",
             }}
           >
-            {stats.passed > 0 && (
-              <StatPill dot="var(--color-success)" label={`${stats.passed} Passed`} />
-            )}
-            {stats.needsRevision > 0 && (
-              <StatPill dot="var(--color-warning)" label={`${stats.needsRevision} Needs Revision`} />
-            )}
-            {stats.submitted > 0 && (
-              <StatPill dot="var(--color-indigo)" label={`${stats.submitted} Submitted`} />
-            )}
-            {stats.inReview > 0 && (
-              <StatPill dot="var(--color-indigo)" label={`${stats.inReview} In Review`} />
-            )}
-            {stats.notStarted > 0 && (
-              <StatPill dot="var(--color-text-tertiary)" label={`${stats.notStarted} Not Started`} />
-            )}
-          </div>
-
-          {/* Right — filter */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: font.body,
-                fontSize: 13,
-                lineHeight: "19px",
-                fontWeight: 400,
-                color: "var(--color-text-tertiary)",
-              }}
-            >
-              Show:
-            </span>
-            <FilterPill label="All" active={filter === "all"} onClick={() => setFilter("all")} />
-            <FilterPill label="Pending" active={filter === "pending"} onClick={() => setFilter("pending")} />
-            <FilterPill label="Passed" active={filter === "passed"} onClick={() => setFilter("passed")} />
-          </div>
+            Filter:
+          </span>
+          <FilterPill label="All" active={filter === "all"} onClick={() => setFilter("all")} />
+          <FilterPill label="Pending" active={filter === "pending"} onClick={() => setFilter("pending")} />
+          <FilterPill label="Passed" active={filter === "passed"} onClick={() => setFilter("passed")} />
         </div>
 
         {/* Divider */}
@@ -663,40 +504,24 @@ export default function MissionsPage() {
         />
       </header>
 
-      {/* MAIN CONTAINER */}
+      {/* MISSION GRID */}
       <div
         style={{
           border: "1px solid var(--color-border-subtle)",
-          borderRadius: 12,
+          borderRadius: 14,
           overflow: "hidden",
           marginTop: 24,
         }}
       >
-        {/* Reviewed Missions */}
-        <MissionSection
-          label="REVIEWED MISSIONS"
-          description="Reviewed by your mentor. Must pass to complete."
-          missions={filteredReviewed}
-          filter={filter}
-          allCount={allReviewed.length}
-        />
-
-        {/* Divider between sections */}
-        <div
-          style={{
-            height: 1,
-            backgroundColor: "var(--color-border-subtle)",
-          }}
-        />
-
-        {/* Completion Missions */}
-        <MissionSection
-          label="COMPLETION MISSIONS"
-          description="Submit to confirm completion. No review required."
-          missions={filteredCompletion}
-          filter={filter}
-          allCount={allCompletion.length}
-        />
+        {filtered.length === 0 ? (
+          <EmptyState filter={filter} />
+        ) : (
+          <div className="missions-dir-grid">
+            {filtered.map((mission) => (
+              <MissionCell key={mission.slug} mission={mission} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
