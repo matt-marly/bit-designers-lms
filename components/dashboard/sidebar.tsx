@@ -27,7 +27,7 @@ const navGroups = [
   {
     label: "EXPLORE",
     items: [
-      { href: "/resources", label: "Resources", icon: FolderOpen },
+      { href: "/materials", label: "Materials", icon: FolderOpen },
       { href: "/reference", label: "Reference", icon: Library },
       { href: "/community", label: "Community", icon: Users },
     ],

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
+  X,
   Home,
   BookOpen,
   Target,
@@ -13,11 +14,12 @@ import {
   Users,
   FileText,
   PlayCircle,
+  ChevronRight,
 } from "lucide-react";
 import { mockUnits } from "@/lib/mock-learn-data";
 import { mockMissions } from "@/lib/mock-missions-data";
-import { mockResources } from "@/lib/mock-resources-data";
-import { mockReferenceItems } from "@/lib/mock-reference-data";
+import { mockMaterialGroups } from "@/lib/mock-materials-data";
+import { mockReferenceGroups } from "@/lib/mock-reference-data";
 
 const font = {
   display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
@@ -30,7 +32,7 @@ const quickLinks = [
   { label: "Learn", href: "/learn", icon: BookOpen },
   { label: "Missions", href: "/missions", icon: Target },
   { label: "Live", href: "/live", icon: Radio },
-  { label: "Resources", href: "/resources", icon: FolderOpen },
+  { label: "Materials", href: "/materials", icon: FolderOpen },
   { label: "Reference", href: "/reference", icon: Library },
 ];
 
@@ -38,7 +40,7 @@ interface SearchResult {
   id: string;
   title: string;
   context: string;
-  type: "module" | "mission" | "resource" | "reference";
+  type: "module" | "mission" | "material" | "reference";
   href?: string;
   url?: string;
   icon: typeof BookOpen;
@@ -54,7 +56,7 @@ function highlightMatch(text: string, query: string) {
   return (
     <>
       {before}
-      <span style={{ color: "var(--color-indigo-text)" }}>{match}</span>
+      <span style={{ color: "var(--color-indigo-text)", fontWeight: 500 }}>{match}</span>
       {after}
     </>
   );
@@ -71,7 +73,7 @@ function getSearchResults(query: string): SearchResult[] {
         results.push({
           id: `mod-${mod.slug}`,
           title: mod.title,
-          context: `MODULE · ${unit.title}`,
+          context: `MODULE \u00b7 ${unit.title}`,
           type: "module",
           href: `/learn/${mod.slug}`,
           icon: BookOpen,
@@ -86,7 +88,7 @@ function getSearchResults(query: string): SearchResult[] {
       results.push({
         id: `mis-${mission.slug}`,
         title: mission.title,
-        context: `MISSION · ${mission.status.replace("-", " ").toUpperCase()}`,
+        context: `MISSION \u00b7 ${mission.status.replace(/-/g, " ").toUpperCase()}`,
         type: "mission",
         href: `/missions/${mission.slug}`,
         icon: Target,
@@ -94,37 +96,35 @@ function getSearchResults(query: string): SearchResult[] {
     }
   }
 
-  // Resources
-  for (const resource of mockResources) {
-    if (
-      resource.title.toLowerCase().includes(q) ||
-      resource.description.toLowerCase().includes(q)
-    ) {
-      results.push({
-        id: `res-${resource.id}`,
-        title: resource.title,
-        context: `${resource.type.toUpperCase()} · ${resource.source}`,
-        type: "resource",
-        url: resource.url,
-        icon: FileText,
-      });
+  // Materials
+  for (const group of mockMaterialGroups) {
+    for (const mat of group.materials) {
+      if (mat.title.toLowerCase().includes(q)) {
+        results.push({
+          id: `mat-${mat.slug}`,
+          title: mat.title,
+          context: `MATERIAL \u00b7 ${mat.readTime}`,
+          type: "material",
+          url: mat.url,
+          icon: FileText,
+        });
+      }
     }
   }
 
   // Reference
-  for (const ref of mockReferenceItems) {
-    if (
-      ref.title.toLowerCase().includes(q) ||
-      ref.description.toLowerCase().includes(q)
-    ) {
-      results.push({
-        id: `ref-${ref.id}`,
-        title: ref.title,
-        context: `${ref.topic.toUpperCase()} · ${ref.duration}`,
-        type: "reference",
-        url: ref.url,
-        icon: ref.type === "video" ? PlayCircle : FileText,
-      });
+  for (const group of mockReferenceGroups) {
+    for (const ref of group.items) {
+      if (ref.title.toLowerCase().includes(q)) {
+        results.push({
+          id: `ref-${ref.id}`,
+          title: ref.title,
+          context: `REFERENCE \u00b7 ${ref.duration}`,
+          type: "reference",
+          url: ref.url,
+          icon: ref.type === "video" ? PlayCircle : FileText,
+        });
+      }
     }
   }
 
@@ -135,12 +135,12 @@ function groupResults(results: SearchResult[]) {
   const groups: { label: string; type: string; items: SearchResult[] }[] = [];
   const modules = results.filter((r) => r.type === "module");
   const missions = results.filter((r) => r.type === "mission");
-  const resources = results.filter((r) => r.type === "resource");
+  const materials = results.filter((r) => r.type === "material");
   const references = results.filter((r) => r.type === "reference");
 
   if (modules.length) groups.push({ label: "MODULES", type: "module", items: modules });
   if (missions.length) groups.push({ label: "MISSIONS", type: "mission", items: missions });
-  if (resources.length) groups.push({ label: "RESOURCES", type: "resource", items: resources });
+  if (materials.length) groups.push({ label: "MATERIALS", type: "material", items: materials });
   if (references.length) groups.push({ label: "REFERENCE", type: "reference", items: references });
 
   return groups;
@@ -159,30 +159,22 @@ export function CommandPalette({
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Debounced query
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 150);
-    return () => clearTimeout(t);
-  }, [query]);
-
   const results = useMemo(
-    () => (debouncedQuery ? getSearchResults(debouncedQuery) : []),
-    [debouncedQuery]
+    () => (query ? getSearchResults(query) : []),
+    [query]
   );
   const groups = useMemo(() => groupResults(results), [results]);
 
   // Flatten for keyboard nav
   const allItems = useMemo(() => {
-    if (!debouncedQuery) return quickLinks.map((l, i) => ({ ...l, _idx: i, _type: "quick" as const }));
+    if (!query) return quickLinks.map((l, i) => ({ ...l, _idx: i, _type: "quick" as const }));
     return results.map((r, i) => ({ ...r, _idx: i, _type: "result" as const }));
-  }, [debouncedQuery, results]);
+  }, [query, results]);
 
   // Reset on open/close
   useEffect(() => {
     if (isOpen) {
       setQuery("");
-      setDebouncedQuery("");
       setHighlightedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
@@ -199,10 +191,10 @@ export function CommandPalette({
     }
   }, [isOpen]);
 
-  // Reset highlight when results change
+  // Reset highlight when query changes
   useEffect(() => {
     setHighlightedIndex(0);
-  }, [debouncedQuery]);
+  }, [query]);
 
   const activateItem = useCallback(
     (index: number) => {
@@ -238,12 +230,16 @@ export function CommandPalette({
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setHighlightedIndex((prev) => Math.min(prev + 1, allItems.length - 1));
+        setHighlightedIndex((prev) =>
+          prev >= allItems.length - 1 ? 0 : prev + 1
+        );
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+        setHighlightedIndex((prev) =>
+          prev <= 0 ? allItems.length - 1 : prev - 1
+        );
         return;
       }
       if (e.key === "Enter") {
@@ -274,7 +270,7 @@ export function CommandPalette({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0,0,0,0.7)",
+        backgroundColor: "rgba(0,0,0,0.75)",
         zIndex: 100,
         display: "flex",
         justifyContent: "center",
@@ -284,17 +280,17 @@ export function CommandPalette({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: 600,
+          maxWidth: 580,
           width: "90vw",
-          marginTop: "15vh",
+          marginTop: "12vh",
           backgroundColor: "var(--color-bg-surface)",
           border: "1px solid var(--color-border-subtle)",
           borderRadius: 16,
           overflow: "hidden",
-          boxShadow: "0 25px 50px rgba(0,0,0,0.5)",
+          boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
         }}
       >
-        {/* Search input */}
+        {/* Search input row */}
         <div
           style={{
             padding: "16px 20px",
@@ -330,13 +326,42 @@ export function CommandPalette({
               color: "var(--color-text-primary)",
             }}
           />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              style={{
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <X
+                style={{
+                  width: 16,
+                  height: 16,
+                  color: "var(--color-text-tertiary)",
+                  transitionProperty: "color",
+                  transitionDuration: "var(--duration-fast)",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as SVGElement).style.color = "var(--color-text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as SVGElement).style.color = "var(--color-text-tertiary)";
+                }}
+              />
+            </button>
+          )}
         </div>
 
         {/* Results area */}
         <div
           ref={resultsRef}
           className="command-palette-scroll"
-          style={{ maxHeight: 480, overflowY: "auto" }}
+          style={{ maxHeight: 440, overflowY: "auto", paddingTop: 8, paddingBottom: 8 }}
         >
           <style>{`
             .command-palette-scroll::-webkit-scrollbar {
@@ -351,12 +376,12 @@ export function CommandPalette({
             }
           `}</style>
 
-          {!debouncedQuery ? (
+          {!query ? (
             /* Quick links */
             <>
               <div
                 style={{
-                  padding: "12px 20px 6px",
+                  padding: "10px 20px 6px",
                   fontFamily: font.mono,
                   fontSize: 10,
                   lineHeight: "12px",
@@ -389,12 +414,14 @@ export function CommandPalette({
                       border: "none",
                       cursor: "pointer",
                       textAlign: "left",
+                      transitionProperty: "background-color",
+                      transitionDuration: "var(--duration-fast)",
                     }}
                   >
                     <Icon
                       style={{
-                        width: 16,
-                        height: 16,
+                        width: 15,
+                        height: 15,
                         color: "var(--color-text-tertiary)",
                         flexShrink: 0,
                       }}
@@ -418,7 +445,7 @@ export function CommandPalette({
             /* No results */
             <div
               style={{
-                padding: "48px 20px",
+                padding: "40px 20px",
                 textAlign: "center",
               }}
             >
@@ -432,7 +459,20 @@ export function CommandPalette({
                   margin: 0,
                 }}
               >
-                No results for &ldquo;{debouncedQuery}&rdquo;
+                No results for &ldquo;{query}&rdquo;
+              </p>
+              <p
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 13,
+                  lineHeight: "19px",
+                  fontWeight: 400,
+                  color: "var(--color-text-tertiary)",
+                  margin: 0,
+                  marginTop: 4,
+                }}
+              >
+                Try a different search term.
               </p>
             </div>
           ) : (
@@ -442,7 +482,7 @@ export function CommandPalette({
                 <div key={group.type}>
                   <div
                     style={{
-                      padding: "12px 20px 4px",
+                      padding: "10px 20px 4px",
                       fontFamily: font.mono,
                       fontSize: 10,
                       lineHeight: "12px",
@@ -481,12 +521,14 @@ export function CommandPalette({
                           border: "none",
                           cursor: "pointer",
                           textAlign: "left",
+                          transitionProperty: "background-color",
+                          transitionDuration: "var(--duration-fast)",
                         }}
                       >
                         <Icon
                           style={{
-                            width: 14,
-                            height: 14,
+                            width: 15,
+                            height: 15,
                             color: "var(--color-text-tertiary)",
                             flexShrink: 0,
                           }}
@@ -504,7 +546,7 @@ export function CommandPalette({
                               whiteSpace: "nowrap",
                             }}
                           >
-                            {highlightMatch(item.title, debouncedQuery)}
+                            {highlightMatch(item.title, query)}
                           </div>
                           <div
                             style={{
@@ -515,11 +557,20 @@ export function CommandPalette({
                               letterSpacing: "0.06em",
                               textTransform: "uppercase",
                               color: "var(--color-text-tertiary)",
+                              marginTop: 2,
                             }}
                           >
                             {item.context}
                           </div>
                         </div>
+                        <ChevronRight
+                          style={{
+                            width: 13,
+                            height: 13,
+                            color: "var(--color-text-tertiary)",
+                            flexShrink: 0,
+                          }}
+                        />
                       </button>
                     );
                   })}

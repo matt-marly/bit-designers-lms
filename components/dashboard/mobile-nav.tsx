@@ -18,7 +18,7 @@ const navItems = [
   { href: "/learn", label: "Learn", icon: BookOpen },
   { href: "/missions", label: "Missions", icon: Target },
   { href: "/live", label: "Live", icon: Radio },
-  { href: "/resources", label: "Resources", icon: FolderOpen },
+  { href: "/materials", label: "Materials", icon: FolderOpen },
   { href: "/reference", label: "Reference", icon: Library },
   { href: "/community", label: "Community", icon: Users },
 ] as const;

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { PlayCircle, ExternalLink, ChevronDown, Search } from "lucide-react";
-import { mockReferenceGroups } from "@/lib/mock-reference-data";
-import type { ReferenceItem } from "@/lib/mock-reference-data";
+import { FileText, ExternalLink, Clock, ChevronDown, Search } from "lucide-react";
+import { mockMaterialGroups } from "@/lib/mock-materials-data";
+import type { Material } from "@/lib/mock-materials-data";
 
 const font = {
   display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
@@ -13,10 +13,9 @@ const font = {
 
 const filterTabs = [
   { label: "All", value: "all" },
-  { label: "Foundations", value: "foundations" },
+  { label: "Core", value: "core" },
   { label: "Craft", value: "craft" },
-  { label: "Research", value: "research" },
-  { label: "Contribution", value: "contribution" },
+  { label: "Research & Contribute", value: "research-contribute" },
 ];
 
 function FilterTab({
@@ -59,27 +58,28 @@ function FilterTab({
   );
 }
 
-function ReferenceCard({ item }: { item: ReferenceItem }) {
+function MaterialCard({ material }: { material: Material }) {
   return (
     <div
-      onClick={() => window.open(item.url, "_blank")}
+      onClick={() => window.open(material.url, "_blank")}
       role="link"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter") window.open(item.url, "_blank");
+        if (e.key === "Enter") window.open(material.url, "_blank");
       }}
       style={{
         backgroundColor: "var(--color-bg-surface)",
         border: "1px solid var(--color-border-subtle)",
         borderRadius: 14,
-        overflow: "hidden",
+        padding: "20px 24px",
         cursor: "pointer",
         transitionProperty: "border-color, background-color",
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quart)",
         display: "flex",
-        flexDirection: "column",
-        height: "100%",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 16,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = "var(--color-border-strong)";
@@ -90,102 +90,13 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
         e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
       }}
     >
-      {/* Card top */}
-      <div
-        style={{
-          width: "100%",
-          aspectRatio: "16 / 9",
-          backgroundColor: "var(--color-bg-surface-2)",
-          borderBottom: "1px solid var(--color-border-subtle)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-        }}
-      >
-        <PlayCircle
-          style={{ width: 28, height: 28, color: "var(--color-text-tertiary)" }}
-        />
-        <span
-          style={{
-            position: "absolute",
-            top: 10,
-            left: 10,
-            backgroundColor: "rgba(0,0,0,0.7)",
-            padding: "3px 8px",
-            borderRadius: 6,
-            fontFamily: font.mono,
-            fontSize: 10,
-            lineHeight: "12px",
-            fontWeight: 500,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--color-text-primary)",
-          }}
-        >
-          VIDEO
-        </span>
-        <span
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
-            backgroundColor: "rgba(0,0,0,0.7)",
-            padding: "3px 8px",
-            borderRadius: 6,
-            fontFamily: font.mono,
-            fontSize: 10,
-            lineHeight: "12px",
-            fontWeight: 500,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--color-text-tertiary)",
-          }}
-        >
-          {item.duration}
-        </span>
-      </div>
-
-      {/* Card body */}
-      <div style={{ padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
-        <p
-          className="line-clamp-2"
-          style={{
-            fontFamily: font.display,
-            fontSize: 14,
-            lineHeight: "19px",
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-            margin: 0,
-          }}
-        >
-          {item.title}
-        </p>
-        <p
-          className="line-clamp-2"
-          style={{
-            fontFamily: font.body,
-            fontSize: 13,
-            lineHeight: "19px",
-            fontWeight: 400,
-            color: "var(--color-text-secondary)",
-            margin: 0,
-            marginTop: 4,
-          }}
-        >
-          {item.description}
-        </p>
-        <div style={{ flex: 1 }} />
-        <div
-          style={{
-            marginTop: 10,
-            paddingTop: 10,
-            borderTop: "1px solid var(--color-border-subtle)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+      {/* Left */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Type row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <FileText
+            style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }}
+          />
           <span
             style={{
               fontFamily: font.mono,
@@ -197,23 +108,89 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
               color: "var(--color-text-tertiary)",
             }}
           >
-            {item.source}
+            DOC
           </span>
-          <ExternalLink
-            style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }}
-          />
         </div>
+
+        {/* Title */}
+        <p
+          style={{
+            fontFamily: font.display,
+            fontSize: 15,
+            lineHeight: "21px",
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+            margin: 0,
+            marginTop: 8,
+          }}
+        >
+          {material.title}
+        </p>
+
+        {/* Description */}
+        <p
+          className="line-clamp-2"
+          style={{
+            fontFamily: font.body,
+            fontSize: 14,
+            lineHeight: "21px",
+            fontWeight: 400,
+            color: "var(--color-text-secondary)",
+            margin: 0,
+            marginTop: 4,
+          }}
+        >
+          {material.description}
+        </p>
+
+        {/* Read time */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            marginTop: 12,
+          }}
+        >
+          <Clock
+            style={{ width: 12, height: 12, color: "var(--color-text-tertiary)", flexShrink: 0 }}
+          />
+          <span
+            style={{
+              fontFamily: font.mono,
+              fontSize: 11,
+              lineHeight: "14px",
+              fontWeight: 500,
+              color: "var(--color-text-tertiary)",
+            }}
+          >
+            {material.readTime} read
+          </span>
+        </div>
+      </div>
+
+      {/* Right */}
+      <div style={{ flexShrink: 0 }}>
+        <ExternalLink
+          style={{
+            width: 16,
+            height: 16,
+            color: "var(--color-text-tertiary)",
+            transitionProperty: "color",
+            transitionDuration: "var(--duration-fast)",
+          }}
+        />
       </div>
     </div>
   );
 }
 
-export default function ReferencePage() {
+export default function MaterialsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    for (const g of mockReferenceGroups) initial[g.id] = true;
+    for (const g of mockMaterialGroups) initial[g.id] = true;
     return initial;
   });
 
@@ -223,21 +200,21 @@ export default function ReferencePage() {
 
   const filteredGroups = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return mockReferenceGroups
+    return mockMaterialGroups
       .filter((group) => activeFilter === "all" || group.id === activeFilter)
       .map((group) => {
         if (!q) return group;
-        const filtered = group.items.filter(
-          (item) =>
-            item.title.toLowerCase().includes(q) ||
-            item.description.toLowerCase().includes(q)
+        const filtered = group.materials.filter(
+          (m) =>
+            m.title.toLowerCase().includes(q) ||
+            m.description.toLowerCase().includes(q)
         );
-        return { ...group, items: filtered };
+        return { ...group, materials: filtered };
       })
-      .filter((group) => group.items.length > 0);
+      .filter((group) => group.materials.length > 0);
   }, [searchQuery, activeFilter]);
 
-  const totalResults = filteredGroups.reduce((sum, g) => sum + g.items.length, 0);
+  const totalResults = filteredGroups.reduce((sum, g) => sum + g.materials.length, 0);
 
   return (
     <div
@@ -255,9 +232,10 @@ export default function ReferencePage() {
           textTransform: "uppercase",
           color: "var(--color-text-tertiary)",
           display: "block",
+          marginBottom: 12,
         }}
       >
-        CURATED PICKS · UPDATED EACH COHORT
+        DESIGN LAB · COHORT 01
       </span>
 
       {/* Title */}
@@ -270,10 +248,9 @@ export default function ReferencePage() {
           letterSpacing: "-0.02em",
           color: "var(--color-text-primary)",
           margin: 0,
-          marginTop: 12,
         }}
       >
-        Reference
+        Materials
       </h1>
 
       {/* Subtitle */}
@@ -289,7 +266,7 @@ export default function ReferencePage() {
           maxWidth: 520,
         }}
       >
-        Curated videos and articles for designers working in Bitcoin and open source. Every pick earns its place — no filler.
+        Program documents, guides, and templates. Updated each cohort.
       </p>
 
       {/* Search input */}
@@ -308,7 +285,7 @@ export default function ReferencePage() {
         />
         <input
           type="text"
-          placeholder="Search reference..."
+          placeholder="Search materials..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
@@ -516,7 +493,7 @@ export default function ReferencePage() {
                       fontVariantNumeric: "tabular-nums",
                     }}
                   >
-                    {group.items.length} picks
+                    {group.materials.length} documents
                   </span>
                 </button>
 
@@ -531,11 +508,11 @@ export default function ReferencePage() {
                   }}
                 >
                   <div
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                    className="grid grid-cols-1 md:grid-cols-2"
                     style={{ gap: 12 }}
                   >
-                    {group.items.map((item) => (
-                      <ReferenceCard key={item.id} item={item} />
+                    {group.materials.map((material) => (
+                      <MaterialCard key={material.slug} material={material} />
                     ))}
                   </div>
                 </div>
