@@ -9,6 +9,7 @@ import {
   Target,
   Radio,
   FolderOpen,
+  Library,
   Users,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/missions", label: "Missions", icon: Target },
   { href: "/live", label: "Live", icon: Radio },
   { href: "/resources", label: "Resources", icon: FolderOpen },
+  { href: "/reference", label: "Reference", icon: Library },
   { href: "/community", label: "Community", icon: Users },
 ] as const;
 

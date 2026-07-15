@@ -9,7 +9,9 @@ import {
   Target,
   Radio,
   FolderOpen,
+  Library,
   Users,
+  Search,
 } from "lucide-react";
 
 const navGroups = [
@@ -26,12 +28,13 @@ const navGroups = [
     label: "EXPLORE",
     items: [
       { href: "/resources", label: "Resources", icon: FolderOpen },
+      { href: "/reference", label: "Reference", icon: Library },
       { href: "/community", label: "Community", icon: Users },
     ],
   },
 ] as const;
 
-export function Sidebar() {
+export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -155,6 +158,63 @@ export function Sidebar() {
           ))}
         </LayoutGroup>
       </nav>
+
+      {/* Search trigger */}
+      <button
+        onClick={onSearchClick}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          padding: "8px 12px",
+          margin: "8px 0",
+          backgroundColor: "var(--color-bg-surface-2)",
+          border: "1px solid var(--color-border-subtle)",
+          borderRadius: 10,
+          cursor: "pointer",
+          transitionProperty: "border-color",
+          transitionDuration: "var(--duration-fast)",
+          transitionTimingFunction: "var(--ease-out-quart)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "var(--color-border-strong)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Search
+            style={{ width: 14, height: 14, color: "var(--color-text-tertiary)" }}
+          />
+          <span
+            style={{
+              fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
+              fontSize: 13,
+              fontWeight: 400,
+              color: "var(--color-text-tertiary)",
+            }}
+          >
+            Search...
+          </span>
+        </span>
+        <kbd
+          style={{
+            fontFamily: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+            fontSize: 11,
+            fontWeight: 500,
+            color: "var(--color-text-tertiary)",
+            backgroundColor: "var(--color-bg-surface-3)",
+            border: "1px solid var(--color-border-subtle)",
+            borderRadius: 6,
+            padding: "2px 6px",
+            lineHeight: "14px",
+          }}
+        >
+          {"\u2318"}K
+        </kbd>
+      </button>
 
       {/* User zone */}
       <div
