@@ -12,6 +12,7 @@ import {
   Library,
   Users,
   Search,
+  Settings,
 } from "lucide-react";
 
 const navGroups = [
@@ -30,6 +31,13 @@ const navGroups = [
       { href: "/materials", label: "Materials", icon: FolderOpen },
       { href: "/reference", label: "Reference", icon: Library },
       { href: "/community", label: "Community", icon: Users },
+    ],
+  },
+  // TODO: restrict to admin/mentor role
+  {
+    label: "ADMIN",
+    items: [
+      { href: "/admin", label: "Admin", icon: Settings },
     ],
   },
 ] as const;

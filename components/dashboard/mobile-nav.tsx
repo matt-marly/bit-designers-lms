@@ -11,6 +11,7 @@ import {
   FolderOpen,
   Library,
   Users,
+  Settings,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,8 @@ const navItems = [
   { href: "/materials", label: "Materials", icon: FolderOpen },
   { href: "/reference", label: "Reference", icon: Library },
   { href: "/community", label: "Community", icon: Users },
+  // TODO: restrict to admin/mentor role
+  { href: "/admin", label: "Admin", icon: Settings },
 ] as const;
 
 export function MobileNav() {
