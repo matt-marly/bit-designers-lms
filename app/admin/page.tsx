@@ -168,7 +168,19 @@ export default function AdminOverviewPage() {
               borderLeft: stat.accent ? "3px solid var(--color-warning)" : undefined,
             }}
           >
-            <SectionLabel>{stat.label}</SectionLabel>
+            <span
+              style={{
+                fontFamily: font.mono,
+                fontSize: 12,
+                lineHeight: "16px",
+                fontWeight: 600,
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+                color: "var(--color-text-tertiary)",
+              }}
+            >
+              {stat.label}
+            </span>
             <p
               style={{
                 fontFamily: font.mono,

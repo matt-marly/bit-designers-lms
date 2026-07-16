@@ -241,13 +241,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile tab nav (below lg breakpoint) */}
       <div
-        className="lg:hidden"
+        className="flex items-center lg:hidden"
         style={{
           backgroundColor: "var(--color-bg-surface)",
           borderBottom: "1px solid var(--color-border-subtle)",
           overflowX: "auto",
-          display: "flex",
-          alignItems: "center",
           padding: "0 16px",
         }}
       >
