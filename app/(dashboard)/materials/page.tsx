@@ -15,7 +15,7 @@ const filterTabs = [
   { label: "All", value: "all" },
   { label: "Core", value: "core" },
   { label: "Craft", value: "craft" },
-  { label: "Research & Contribute", value: "research-contribute" },
+  { label: "Contribute", value: "research-contribute" },
 ];
 
 function FilterTab({
@@ -67,19 +67,19 @@ function MaterialCard({ material }: { material: Material }) {
       onKeyDown={(e) => {
         if (e.key === "Enter") window.open(material.url, "_blank");
       }}
+      className="group"
       style={{
         backgroundColor: "var(--color-bg-surface)",
         border: "1px solid var(--color-border-subtle)",
         borderRadius: 14,
-        padding: "20px 24px",
+        padding: "20px 20px 16px 20px",
         cursor: "pointer",
         transitionProperty: "border-color, background-color",
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quart)",
         display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 16,
+        flexDirection: "column",
+        position: "relative",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = "var(--color-border-strong)";
@@ -90,29 +90,28 @@ function MaterialCard({ material }: { material: Material }) {
         e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
       }}
     >
-      {/* Left */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Type row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <FileText
-            style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }}
-          />
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 10,
-              lineHeight: "12px",
-              fontWeight: 500,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-            }}
-          >
-            DOC
-          </span>
-        </div>
+      {/* Hover ExternalLink icon — top right */}
+      <div
+        className="opacity-0 group-hover:opacity-100"
+        style={{
+          position: "absolute",
+          top: 12,
+          right: 12,
+          transitionProperty: "opacity",
+          transitionDuration: "var(--duration-fast)",
+          transitionTimingFunction: "var(--ease-out-quart)",
+        }}
+      >
+        <ExternalLink
+          style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }}
+        />
+      </div>
 
-        {/* Title */}
+      {/* Title row — icon inline with title */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <FileText
+          style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }}
+        />
         <p
           style={{
             fontFamily: font.display,
@@ -121,65 +120,55 @@ function MaterialCard({ material }: { material: Material }) {
             fontWeight: 600,
             color: "var(--color-text-primary)",
             margin: 0,
-            marginTop: 8,
           }}
         >
           {material.title}
         </p>
-
-        {/* Description */}
-        <p
-          className="line-clamp-2"
-          style={{
-            fontFamily: font.body,
-            fontSize: 14,
-            lineHeight: "21px",
-            fontWeight: 400,
-            color: "var(--color-text-secondary)",
-            margin: 0,
-            marginTop: 4,
-          }}
-        >
-          {material.description}
-        </p>
-
-        {/* Read time */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginTop: 12,
-          }}
-        >
-          <Clock
-            style={{ width: 12, height: 12, color: "var(--color-text-tertiary)", flexShrink: 0 }}
-          />
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 500,
-              color: "var(--color-text-tertiary)",
-            }}
-          >
-            {material.readTime} read
-          </span>
-        </div>
       </div>
 
-      {/* Right */}
-      <div style={{ flexShrink: 0 }}>
-        <ExternalLink
-          style={{
-            width: 16,
-            height: 16,
-            color: "var(--color-text-tertiary)",
-            transitionProperty: "color",
-            transitionDuration: "var(--duration-fast)",
-          }}
+      {/* Description */}
+      <p
+        className="line-clamp-2"
+        style={{
+          fontFamily: font.body,
+          fontSize: 14,
+          lineHeight: "21px",
+          fontWeight: 400,
+          color: "var(--color-text-secondary)",
+          margin: 0,
+          marginTop: 4,
+          flex: 1,
+          wordBreak: "break-word",
+        }}
+      >
+        {material.description}
+      </p>
+
+      {/* Footer row — read time only */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          marginTop: 12,
+          paddingTop: 12,
+          borderTop: "1px solid var(--color-border-subtle)",
+        }}
+      >
+        <Clock
+          style={{ width: 12, height: 12, color: "var(--color-text-tertiary)", flexShrink: 0 }}
         />
+        <span
+          style={{
+            fontFamily: font.mono,
+            fontSize: 11,
+            lineHeight: "14px",
+            fontWeight: 500,
+            color: "var(--color-text-tertiary)",
+          }}
+        >
+          {material.readTime} read
+        </span>
       </div>
     </div>
   );
@@ -214,7 +203,16 @@ export default function MaterialsPage() {
       .filter((group) => group.materials.length > 0);
   }, [searchQuery, activeFilter]);
 
-  const totalResults = filteredGroups.reduce((sum, g) => sum + g.materials.length, 0);
+  const isSpecificFilter = activeFilter !== "all";
+
+  const allExpanded = mockMaterialGroups.every((g) => expandedGroups[g.id] !== false);
+
+  const toggleAll = () => {
+    const newState: Record<string, boolean> = {};
+    const target = !allExpanded;
+    for (const g of mockMaterialGroups) newState[g.id] = target;
+    setExpandedGroups(newState);
+  };
 
   return (
     <div
@@ -314,44 +312,59 @@ export default function MaterialsPage() {
         />
       </div>
 
-      {/* Filter tabs */}
+      {/* Filter tabs row */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           marginTop: 16,
           borderBottom: "1px solid var(--color-border-subtle)",
-          overflowX: "auto",
         }}
       >
-        {filterTabs.map((tab) => (
-          <FilterTab
-            key={tab.value}
-            label={tab.label}
-            active={activeFilter === tab.value}
-            onClick={() => setActiveFilter(tab.value)}
-          />
-        ))}
+        <div style={{ display: "flex", alignItems: "center", overflowX: "auto" }}>
+          {filterTabs.map((tab) => (
+            <FilterTab
+              key={tab.value}
+              label={tab.label}
+              active={activeFilter === tab.value}
+              onClick={() => setActiveFilter(tab.value)}
+            />
+          ))}
+        </div>
+
+        {!isSpecificFilter && (
+          <button
+            onClick={toggleAll}
+            style={{
+              fontFamily: font.body,
+              fontSize: 12,
+              fontWeight: 400,
+              color: "var(--color-text-tertiary)",
+              backgroundColor: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "8px 0",
+              whiteSpace: "nowrap",
+              marginLeft: 16,
+              transitionProperty: "color",
+              transitionDuration: "var(--duration-fast)",
+              transitionTimingFunction: "var(--ease-out-quart)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--color-text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--color-text-tertiary)";
+            }}
+          >
+            {allExpanded ? "Collapse all" : "Expand all"}
+          </button>
+        )}
       </div>
 
-      {/* Results count */}
-      <p
-        style={{
-          fontFamily: font.mono,
-          fontSize: 11,
-          lineHeight: "14px",
-          fontWeight: 500,
-          color: "var(--color-text-tertiary)",
-          margin: 0,
-          marginTop: 8,
-          marginBottom: 32,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {totalResults} result{totalResults !== 1 ? "s" : ""}
-      </p>
+      <div style={{ height: 32 }} />
 
-      {/* Groups or empty state */}
       {filteredGroups.length === 0 ? (
         <div
           style={{
@@ -409,41 +422,97 @@ export default function MaterialsPage() {
           </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {filteredGroups.map((group) => {
-            const isExpanded = expandedGroups[group.id] !== false;
+            const isExpanded = isSpecificFilter || expandedGroups[group.id] !== false;
+            const isAccordion = !isSpecificFilter;
             return (
               <section key={group.id}>
-                {/* Group header — clickable accordion */}
-                <button
-                  onClick={() => toggleGroup(group.id)}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    width: "100%",
-                    backgroundColor: "transparent",
-                    border: "none",
-                    borderBottom: "1px solid var(--color-border-subtle)",
-                    textAlign: "left",
-                    padding: 0,
-                    paddingBottom: 16,
-                    marginBottom: 20,
-                    cursor: "pointer",
-                  }}
-                >
-                  {/* Left */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <ChevronDown
+                {isAccordion ? (
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      width: "100%",
+                      backgroundColor: "transparent",
+                      border: "none",
+                      borderBottom: "1px solid var(--color-border-subtle)",
+                      textAlign: "left",
+                      padding: 0,
+                      paddingBottom: 16,
+                      marginBottom: isExpanded ? 20 : 0,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <ChevronDown
+                        style={{
+                          width: 16,
+                          height: 16,
+                          color: "var(--color-text-tertiary)",
+                          flexShrink: 0,
+                          transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
+                          transition: "transform 200ms var(--ease-out-quart)",
+                        }}
+                      />
+                      <div>
+                        <h2
+                          style={{
+                            fontFamily: font.display,
+                            fontSize: 20,
+                            lineHeight: "26px",
+                            fontWeight: 600,
+                            color: "var(--color-text-primary)",
+                            margin: 0,
+                          }}
+                        >
+                          {group.label}
+                        </h2>
+                        <p
+                          style={{
+                            fontFamily: font.body,
+                            fontSize: 13,
+                            lineHeight: "19px",
+                            fontWeight: 400,
+                            color: "var(--color-text-tertiary)",
+                            margin: 0,
+                            marginTop: 6,
+                          }}
+                        >
+                          {group.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
                       style={{
-                        width: 16,
-                        height: 16,
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 500,
                         color: "var(--color-text-tertiary)",
                         flexShrink: 0,
-                        transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
-                        transition: "transform 200ms var(--ease-out-quart)",
+                        marginLeft: 16,
+                        fontVariantNumeric: "tabular-nums",
+                        whiteSpace: "nowrap",
                       }}
-                    />
+                    >
+                      {group.materials.length} documents
+                    </span>
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      borderBottom: "1px solid var(--color-border-subtle)",
+                      paddingBottom: 16,
+                      marginBottom: 20,
+                    }}
+                  >
                     <div>
                       <h2
                         style={{
@@ -465,47 +534,43 @@ export default function MaterialsPage() {
                           fontWeight: 400,
                           color: "var(--color-text-tertiary)",
                           margin: 0,
-                          marginTop: 3,
+                          marginTop: 6,
                         }}
                       >
                         {group.description}
                       </p>
                     </div>
+
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 500,
+                        color: "var(--color-text-tertiary)",
+                        flexShrink: 0,
+                        marginLeft: 16,
+                        fontVariantNumeric: "tabular-nums",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {group.materials.length} documents
+                    </span>
                   </div>
+                )}
 
-                  {/* Right — count badge */}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      height: 24,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      backgroundColor: "var(--color-bg-surface-2)",
-                      border: "1px solid var(--color-border-subtle)",
-                      fontFamily: font.mono,
-                      fontSize: 11,
-                      lineHeight: "14px",
-                      fontWeight: 500,
-                      color: "var(--color-text-tertiary)",
-                      flexShrink: 0,
-                      marginLeft: 16,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {group.materials.length} documents
-                  </span>
-                </button>
-
-                {/* Collapsible cards grid */}
                 <div
-                  style={{
-                    overflow: "hidden",
-                    maxHeight: isExpanded ? 2000 : 0,
-                    opacity: isExpanded ? 1 : 0,
-                    transition:
-                      "max-height 300ms var(--ease-out-quart), opacity 200ms var(--ease-out-quart)",
-                  }}
+                  style={
+                    isAccordion
+                      ? {
+                          overflow: "hidden",
+                          maxHeight: isExpanded ? 2000 : 0,
+                          opacity: isExpanded ? 1 : 0,
+                          transition:
+                            "max-height 300ms var(--ease-out-quart), opacity 200ms var(--ease-out-quart)",
+                        }
+                      : {}
+                  }
                 >
                   <div
                     className="grid grid-cols-1 md:grid-cols-2"

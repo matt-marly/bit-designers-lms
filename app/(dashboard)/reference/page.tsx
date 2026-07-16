@@ -68,6 +68,7 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
       onKeyDown={(e) => {
         if (e.key === "Enter") window.open(item.url, "_blank");
       }}
+      className="group"
       style={{
         backgroundColor: "var(--color-bg-surface)",
         border: "1px solid var(--color-border-subtle)",
@@ -80,6 +81,7 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        position: "relative",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = "var(--color-border-strong)";
@@ -90,11 +92,29 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
         e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
       }}
     >
-      {/* Card top */}
+      {/* Hover ExternalLink icon — top right of card */}
+      <div
+        className="opacity-0 group-hover:opacity-100"
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          zIndex: 1,
+          transitionProperty: "opacity",
+          transitionDuration: "var(--duration-fast)",
+          transitionTimingFunction: "var(--ease-out-quart)",
+        }}
+      >
+        <ExternalLink
+          style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }}
+        />
+      </div>
+
+      {/* Card top — fixed height thumbnail */}
       <div
         style={{
           width: "100%",
-          aspectRatio: "16 / 9",
+          height: 140,
           backgroundColor: "var(--color-bg-surface-2)",
           borderBottom: "1px solid var(--color-border-subtle)",
           display: "flex",
@@ -104,7 +124,7 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
         }}
       >
         <PlayCircle
-          style={{ width: 28, height: 28, color: "var(--color-text-tertiary)" }}
+          style={{ width: 28, height: 28, color: "var(--color-text-secondary)" }}
         />
         <span
           style={{
@@ -128,7 +148,7 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
         <span
           style={{
             position: "absolute",
-            top: 10,
+            bottom: 10,
             right: 10,
             backgroundColor: "rgba(0,0,0,0.7)",
             padding: "3px 8px",
@@ -171,37 +191,32 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
             color: "var(--color-text-secondary)",
             margin: 0,
             marginTop: 4,
+            minHeight: 38,
+            flex: 1,
           }}
         >
           {item.description}
         </p>
-        <div style={{ flex: 1 }} />
         <div
           style={{
             marginTop: 10,
             paddingTop: 10,
             borderTop: "1px solid var(--color-border-subtle)",
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
           }}
         >
           <span
             style={{
-              fontFamily: font.mono,
-              fontSize: 10,
-              lineHeight: "12px",
-              fontWeight: 500,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
+              fontFamily: font.body,
+              fontSize: 12,
+              lineHeight: "16px",
+              fontWeight: 400,
               color: "var(--color-text-tertiary)",
             }}
           >
             {item.source}
           </span>
-          <ExternalLink
-            style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }}
-          />
         </div>
       </div>
     </div>
@@ -237,7 +252,16 @@ export default function ReferencePage() {
       .filter((group) => group.items.length > 0);
   }, [searchQuery, activeFilter]);
 
-  const totalResults = filteredGroups.reduce((sum, g) => sum + g.items.length, 0);
+  const isSpecificFilter = activeFilter !== "all";
+
+  const allExpanded = mockReferenceGroups.every((g) => expandedGroups[g.id] !== false);
+
+  const toggleAll = () => {
+    const newState: Record<string, boolean> = {};
+    const target = !allExpanded;
+    for (const g of mockReferenceGroups) newState[g.id] = target;
+    setExpandedGroups(newState);
+  };
 
   return (
     <div
@@ -257,7 +281,7 @@ export default function ReferencePage() {
           display: "block",
         }}
       >
-        CURATED PICKS · UPDATED EACH COHORT
+        FREE · BITCOIN & OPEN SOURCE
       </span>
 
       {/* Title */}
@@ -337,44 +361,59 @@ export default function ReferencePage() {
         />
       </div>
 
-      {/* Filter tabs */}
+      {/* Filter tabs row */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           marginTop: 16,
           borderBottom: "1px solid var(--color-border-subtle)",
-          overflowX: "auto",
         }}
       >
-        {filterTabs.map((tab) => (
-          <FilterTab
-            key={tab.value}
-            label={tab.label}
-            active={activeFilter === tab.value}
-            onClick={() => setActiveFilter(tab.value)}
-          />
-        ))}
+        <div style={{ display: "flex", alignItems: "center", overflowX: "auto" }}>
+          {filterTabs.map((tab) => (
+            <FilterTab
+              key={tab.value}
+              label={tab.label}
+              active={activeFilter === tab.value}
+              onClick={() => setActiveFilter(tab.value)}
+            />
+          ))}
+        </div>
+
+        {!isSpecificFilter && (
+          <button
+            onClick={toggleAll}
+            style={{
+              fontFamily: font.body,
+              fontSize: 12,
+              fontWeight: 400,
+              color: "var(--color-text-tertiary)",
+              backgroundColor: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "8px 0",
+              whiteSpace: "nowrap",
+              marginLeft: 16,
+              transitionProperty: "color",
+              transitionDuration: "var(--duration-fast)",
+              transitionTimingFunction: "var(--ease-out-quart)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--color-text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--color-text-tertiary)";
+            }}
+          >
+            {allExpanded ? "Collapse all" : "Expand all"}
+          </button>
+        )}
       </div>
 
-      {/* Results count */}
-      <p
-        style={{
-          fontFamily: font.mono,
-          fontSize: 11,
-          lineHeight: "14px",
-          fontWeight: 500,
-          color: "var(--color-text-tertiary)",
-          margin: 0,
-          marginTop: 8,
-          marginBottom: 32,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {totalResults} result{totalResults !== 1 ? "s" : ""}
-      </p>
+      <div style={{ height: 32 }} />
 
-      {/* Groups or empty state */}
       {filteredGroups.length === 0 ? (
         <div
           style={{
@@ -432,41 +471,97 @@ export default function ReferencePage() {
           </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {filteredGroups.map((group) => {
-            const isExpanded = expandedGroups[group.id] !== false;
+            const isExpanded = isSpecificFilter || expandedGroups[group.id] !== false;
+            const isAccordion = !isSpecificFilter;
             return (
               <section key={group.id}>
-                {/* Group header — clickable accordion */}
-                <button
-                  onClick={() => toggleGroup(group.id)}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    width: "100%",
-                    backgroundColor: "transparent",
-                    border: "none",
-                    borderBottom: "1px solid var(--color-border-subtle)",
-                    textAlign: "left",
-                    padding: 0,
-                    paddingBottom: 16,
-                    marginBottom: 20,
-                    cursor: "pointer",
-                  }}
-                >
-                  {/* Left */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <ChevronDown
+                {isAccordion ? (
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      width: "100%",
+                      backgroundColor: "transparent",
+                      border: "none",
+                      borderBottom: "1px solid var(--color-border-subtle)",
+                      textAlign: "left",
+                      padding: 0,
+                      paddingBottom: 16,
+                      marginBottom: isExpanded ? 20 : 0,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <ChevronDown
+                        style={{
+                          width: 16,
+                          height: 16,
+                          color: "var(--color-text-tertiary)",
+                          flexShrink: 0,
+                          transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
+                          transition: "transform 200ms var(--ease-out-quart)",
+                        }}
+                      />
+                      <div>
+                        <h2
+                          style={{
+                            fontFamily: font.display,
+                            fontSize: 20,
+                            lineHeight: "26px",
+                            fontWeight: 600,
+                            color: "var(--color-text-primary)",
+                            margin: 0,
+                          }}
+                        >
+                          {group.label}
+                        </h2>
+                        <p
+                          style={{
+                            fontFamily: font.body,
+                            fontSize: 13,
+                            lineHeight: "19px",
+                            fontWeight: 400,
+                            color: "var(--color-text-tertiary)",
+                            margin: 0,
+                            marginTop: 6,
+                          }}
+                        >
+                          {group.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
                       style={{
-                        width: 16,
-                        height: 16,
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 500,
                         color: "var(--color-text-tertiary)",
                         flexShrink: 0,
-                        transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
-                        transition: "transform 200ms var(--ease-out-quart)",
+                        marginLeft: 16,
+                        fontVariantNumeric: "tabular-nums",
+                        whiteSpace: "nowrap",
                       }}
-                    />
+                    >
+                      {group.items.length} picks
+                    </span>
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      borderBottom: "1px solid var(--color-border-subtle)",
+                      paddingBottom: 16,
+                      marginBottom: 20,
+                    }}
+                  >
                     <div>
                       <h2
                         style={{
@@ -488,51 +583,47 @@ export default function ReferencePage() {
                           fontWeight: 400,
                           color: "var(--color-text-tertiary)",
                           margin: 0,
-                          marginTop: 3,
+                          marginTop: 6,
                         }}
                       >
                         {group.description}
                       </p>
                     </div>
+
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 500,
+                        color: "var(--color-text-tertiary)",
+                        flexShrink: 0,
+                        marginLeft: 16,
+                        fontVariantNumeric: "tabular-nums",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {group.items.length} picks
+                    </span>
                   </div>
+                )}
 
-                  {/* Right — count badge */}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      height: 24,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      backgroundColor: "var(--color-bg-surface-2)",
-                      border: "1px solid var(--color-border-subtle)",
-                      fontFamily: font.mono,
-                      fontSize: 11,
-                      lineHeight: "14px",
-                      fontWeight: 500,
-                      color: "var(--color-text-tertiary)",
-                      flexShrink: 0,
-                      marginLeft: 16,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {group.items.length} picks
-                  </span>
-                </button>
-
-                {/* Collapsible cards grid */}
                 <div
-                  style={{
-                    overflow: "hidden",
-                    maxHeight: isExpanded ? 2000 : 0,
-                    opacity: isExpanded ? 1 : 0,
-                    transition:
-                      "max-height 300ms var(--ease-out-quart), opacity 200ms var(--ease-out-quart)",
-                  }}
+                  style={
+                    isAccordion
+                      ? {
+                          overflow: "hidden",
+                          maxHeight: isExpanded ? 2000 : 0,
+                          opacity: isExpanded ? 1 : 0,
+                          transition:
+                            "max-height 300ms var(--ease-out-quart), opacity 200ms var(--ease-out-quart)",
+                        }
+                      : {}
+                  }
                 >
                   <div
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                    style={{ gap: 12 }}
+                    style={{ gap: 12, alignItems: "stretch" }}
                   >
                     {group.items.map((item) => (
                       <ReferenceCard key={item.id} item={item} />
