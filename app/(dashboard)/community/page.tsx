@@ -234,7 +234,7 @@ export default function CommunityPage() {
           color: "var(--color-text-secondary)",
           margin: 0,
           marginTop: 8,
-          maxWidth: 480,
+          maxWidth: 420,
         }}
       >
         Connect with your cohort and the wider BitDesigners Africa community.
