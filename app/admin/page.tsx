@@ -18,18 +18,31 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 14,
 };
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return "Just now";
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+function timeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffDays > 30) {
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+  if (diffDays > 0) return `${diffDays}d ago`;
+  if (diffHours > 0) return `${diffHours}h ago`;
+  if (diffMins > 0) return `${diffMins}m ago`;
+  return "just now";
 }
 
 export default function AdminOverviewPage() {
   const router = useRouter();
   const pendingCount = mockReviewQueue.filter((r) => r.status === "pending").length;
+  const hasPending = mockAdminStats.pendingReviews > 0;
 
   const stats = [
     {
@@ -37,24 +50,28 @@ export default function AdminOverviewPage() {
       value: String(mockAdminStats.totalLearners),
       context: "COHORT 01",
       valueColor: "var(--color-text-primary)",
+      accent: false,
     },
     {
       label: "PENDING REVIEWS",
       value: String(mockAdminStats.pendingReviews),
       context: "NEEDS ATTENTION",
-      valueColor: mockAdminStats.pendingReviews > 0 ? "var(--color-warning-text)" : "var(--color-text-primary)",
+      valueColor: hasPending ? "var(--color-warning-text)" : "var(--color-text-primary)",
+      accent: hasPending,
     },
     {
       label: "MISSIONS PASSED",
       value: String(mockAdminStats.passedMissions),
       context: "OF 15 TOTAL",
       valueColor: "var(--color-text-primary)",
+      accent: false,
     },
     {
       label: "THIS WEEK",
       value: String(mockAdminStats.submissionsThisWeek),
       context: "SUBMISSIONS",
       valueColor: "var(--color-text-primary)",
+      accent: false,
     },
   ];
 
@@ -62,9 +79,11 @@ export default function AdminOverviewPage() {
     {
       title: "Generate Invite Link",
       desc: "Add new learners to a cohort",
+      descColor: "var(--color-text-tertiary)",
       icon: Link2,
       iconColor: "var(--color-indigo-text)",
       href: "/admin/invites",
+      urgent: false,
     },
     {
       title: "Review Queue",
@@ -73,13 +92,16 @@ export default function AdminOverviewPage() {
       icon: Inbox,
       iconColor: pendingCount > 0 ? "var(--color-warning-text)" : "var(--color-text-tertiary)",
       href: "/admin/review",
+      urgent: pendingCount > 0,
     },
     {
       title: "Post Announcement",
       desc: "Notify your cohort",
+      descColor: "var(--color-text-tertiary)",
       icon: Megaphone,
       iconColor: "var(--color-text-tertiary)",
       href: "/admin/announcements",
+      urgent: false,
     },
   ];
 
@@ -138,7 +160,14 @@ export default function AdminOverviewPage() {
         className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
       >
         {stats.map((stat) => (
-          <div key={stat.label} style={{ ...cardStyle, padding: 20 }}>
+          <div
+            key={stat.label}
+            style={{
+              ...cardStyle,
+              padding: stat.accent ? "20px 20px 20px 17px" : 20,
+              borderLeft: stat.accent ? "3px solid var(--color-warning)" : undefined,
+            }}
+          >
             <SectionLabel>{stat.label}</SectionLabel>
             <p
               style={{
@@ -197,14 +226,24 @@ export default function AdminOverviewPage() {
                   transitionProperty: "border-color, background-color",
                   transitionDuration: "var(--duration-fast)",
                   transitionTimingFunction: "var(--ease-out-quart)",
+                  ...(action.urgent
+                    ? {
+                        borderColor: "rgba(245,158,11,0.30)",
+                        backgroundColor: "rgba(245,158,11,0.10)",
+                      }
+                    : {}),
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-border-strong)";
-                  e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+                  if (!action.urgent) {
+                    e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                    e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-border-subtle)";
-                  e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+                  if (!action.urgent) {
+                    e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+                    e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+                  }
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -228,7 +267,7 @@ export default function AdminOverviewPage() {
                         fontSize: 12,
                         lineHeight: "16px",
                         fontWeight: 400,
-                        color: "descColor" in action ? action.descColor : "var(--color-text-tertiary)",
+                        color: action.descColor,
                         margin: 0,
                         marginTop: 2,
                       }}

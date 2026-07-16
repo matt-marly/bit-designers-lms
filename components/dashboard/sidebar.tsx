@@ -12,7 +12,7 @@ import {
   Library,
   Users,
   Search,
-  Settings,
+  ExternalLink,
 } from "lucide-react";
 
 const navGroups = [
@@ -31,13 +31,6 @@ const navGroups = [
       { href: "/materials", label: "Materials", icon: FolderOpen },
       { href: "/reference", label: "Reference", icon: Library },
       { href: "/community", label: "Community", icon: Users },
-    ],
-  },
-  // TODO: restrict to admin/mentor role
-  {
-    label: "ADMIN",
-    items: [
-      { href: "/admin", label: "Admin", icon: Settings },
     ],
   },
 ] as const;
@@ -282,6 +275,42 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
           </span>
         </div>
       </div>
+
+      {/* Admin link — TODO: restrict to admin/mentor role */}
+      <button
+        onClick={() => window.open("/admin", "_blank")}
+        style={{
+          padding: "8px 12px",
+          marginTop: 4,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+          opacity: 0.6,
+          background: "none",
+          border: "none",
+          width: "100%",
+          transitionProperty: "opacity",
+          transitionDuration: "var(--duration-fast)",
+          transitionTimingFunction: "var(--ease-out-quart)",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+      >
+        <ExternalLink
+          style={{ width: 11, height: 11, color: "var(--color-text-tertiary)" }}
+        />
+        <span
+          style={{
+            fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
+            fontSize: 11,
+            fontWeight: 400,
+            color: "var(--color-text-tertiary)",
+          }}
+        >
+          Admin
+        </span>
+      </button>
     </aside>
   );
 }

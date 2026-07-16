@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Calendar, Users, BarChart3 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
-import { PrimaryButton, OutlineButton } from "@/components/ui/custom/buttons";
+import { OutlineButton } from "@/components/ui/custom/buttons";
 import { mockCohorts } from "@/lib/mock-admin-data";
 
 const font = {
@@ -29,6 +29,7 @@ function formatDateRange(start: string, end: string): string {
 
 export default function CohortsPage() {
   const [progress, setProgress] = useState(0);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setProgress(mockCohorts[0].completionRate), 100);
@@ -52,8 +53,53 @@ export default function CohortsPage() {
         >
           Cohorts
         </h1>
-        <div title="Coming soon">
-          <PrimaryButton disabled>New Cohort</PrimaryButton>
+        <div
+          style={{ position: "relative" }}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
+          <button
+            disabled
+            className="inline-flex items-center justify-center"
+            style={{
+              height: 40,
+              padding: "0 16px",
+              borderRadius: 10,
+              backgroundColor: "var(--color-indigo)",
+              color: "var(--color-text-on-accent)",
+              fontFamily: font.body,
+              fontSize: "14.5px",
+              fontWeight: 500,
+              border: "none",
+              opacity: 0.4,
+              cursor: "not-allowed",
+              pointerEvents: "none",
+            }}
+          >
+            New Cohort
+          </button>
+          {showTooltip && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                marginTop: 4,
+                backgroundColor: "var(--color-bg-surface-3)",
+                border: "1px solid var(--color-border-subtle)",
+                borderRadius: 10,
+                padding: "6px 10px",
+                whiteSpace: "nowrap",
+                fontFamily: font.body,
+                fontSize: 12,
+                fontWeight: 400,
+                color: "var(--color-text-tertiary)",
+                zIndex: 10,
+              }}
+            >
+              Coming in V2
+            </div>
+          )}
         </div>
       </div>
 
@@ -109,60 +155,20 @@ export default function CohortsPage() {
           {/* Progress bar */}
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 13,
-                  fontWeight: 400,
-                  color: "var(--color-text-secondary)",
-                }}
-              >
+              <span style={{ fontFamily: font.body, fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)" }}>
                 Overall Progress
               </span>
-              <span
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "var(--color-text-tertiary)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
+              <span style={{ fontFamily: font.mono, fontSize: 12, fontWeight: 500, color: "var(--color-text-tertiary)", fontVariantNumeric: "tabular-nums" }}>
                 {cohort.completionRate}%
               </span>
             </div>
-            <div
-              style={{
-                height: 4,
-                width: "100%",
-                borderRadius: 999,
-                backgroundColor: "var(--color-bg-surface-2)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${progress}%`,
-                  height: 4,
-                  borderRadius: 999,
-                  backgroundColor: "var(--color-indigo)",
-                  transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
-                }}
-              />
+            <div style={{ height: 4, width: "100%", borderRadius: 999, backgroundColor: "var(--color-bg-surface-2)", overflow: "hidden" }}>
+              <div style={{ width: `${progress}%`, height: 4, borderRadius: 999, backgroundColor: "var(--color-indigo)", transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)" }} />
             </div>
           </div>
 
           {/* Actions */}
-          <div
-            style={{
-              marginTop: 20,
-              borderTop: "1px solid var(--color-border-subtle)",
-              paddingTop: 16,
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ marginTop: 20, borderTop: "1px solid var(--color-border-subtle)", paddingTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <OutlineButton size="small">View Learners</OutlineButton>
             <OutlineButton size="small">View Missions</OutlineButton>
             <OutlineButton size="small">Manage</OutlineButton>
