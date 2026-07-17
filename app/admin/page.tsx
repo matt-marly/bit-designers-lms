@@ -57,7 +57,7 @@ export default function AdminOverviewPage() {
       label: "PENDING REVIEWS",
       value: String(mockAdminStats.pendingReviews),
       context: "NEEDS ATTENTION",
-      valueColor: hasPending ? "var(--color-warning-text)" : "var(--color-text-primary)",
+      valueColor: "var(--color-text-primary)",
       accent: hasPending,
     },
     {
@@ -89,9 +89,9 @@ export default function AdminOverviewPage() {
     {
       title: "Review Queue",
       desc: pendingCount > 0 ? `${pendingCount} pending` : "All clear",
-      descColor: pendingCount > 0 ? "var(--color-warning-text)" : "var(--color-text-tertiary)",
+      descColor: "var(--color-text-tertiary)",
       icon: Inbox,
-      iconColor: pendingCount > 0 ? "var(--color-warning-text)" : "var(--color-text-tertiary)",
+      iconColor: "var(--color-text-tertiary)",
       href: "/admin/review",
       urgent: pendingCount > 0,
     },
@@ -225,10 +225,11 @@ export default function AdminOverviewPage() {
 
       {/* Quick Actions */}
       <div style={{ marginTop: 48 }}>
-        <SectionLabel>QUICK ACTIONS</SectionLabel>
+        <div style={{ marginBottom: 16 }}>
+          <SectionLabel>QUICK ACTIONS</SectionLabel>
+        </div>
         <div
           style={{
-            marginTop: 16,
             border: "1px solid var(--color-border-subtle)",
             borderRadius: 14,
             overflow: "hidden",
@@ -333,8 +334,10 @@ export default function AdminOverviewPage() {
 
       {/* Recent Submissions */}
       <div style={{ marginTop: 48 }}>
-        <SectionLabel>RECENT SUBMISSIONS</SectionLabel>
-        <div style={{ marginTop: 16, border: "1px solid var(--color-border-subtle)", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ marginBottom: 16 }}>
+          <SectionLabel>RECENT SUBMISSIONS</SectionLabel>
+        </div>
+        <div style={{ border: "1px solid #242424", borderRadius: 12, overflow: "hidden" }}>
           {mockReviewQueue.map((item, i) => (
             <div
               key={item.id}
