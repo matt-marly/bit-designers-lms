@@ -192,8 +192,8 @@ export default function AdminOverviewPage() {
             <p
               style={{
                 fontFamily: font.mono,
-                fontSize: 30,
-                lineHeight: "34px",
+                fontSize: 32,
+                lineHeight: "36px",
                 fontWeight: 600,
                 letterSpacing: "-0.02em",
                 color: stat.valueColor,
@@ -334,7 +334,7 @@ export default function AdminOverviewPage() {
       {/* Recent Submissions */}
       <div style={{ marginTop: 48 }}>
         <SectionLabel>RECENT SUBMISSIONS</SectionLabel>
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16, border: "1px solid var(--color-border-subtle)", borderRadius: 12, overflow: "hidden" }}>
           {mockReviewQueue.map((item, i) => (
             <div
               key={item.id}
@@ -342,7 +342,7 @@ export default function AdminOverviewPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "14px 0",
+                padding: "14px 20px",
                 borderBottom: i < mockReviewQueue.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
                 gap: 16,
               }}

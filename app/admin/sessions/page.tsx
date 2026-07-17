@@ -39,7 +39,14 @@ function TogglePill({ label, selected, onClick }: { label: string; selected: boo
 
 function formatSessionDate(date: string, time: string, tz: string): string {
   const d = new Date(date + "T" + time);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) + " · " + time + " " + tz;
+  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+  const month = d.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
+  const day = d.getDate();
+  const [h, m] = time.split(":");
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${weekday}, ${month} ${day} · ${hour12}:${m} ${ampm} ${tz}`;
 }
 
 function StatusBadge({ status }: { status: string }) {

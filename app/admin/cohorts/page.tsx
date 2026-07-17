@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Calendar, Users, BarChart3 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
@@ -28,6 +29,7 @@ function formatDateRange(start: string, end: string): string {
 }
 
 export default function CohortsPage() {
+  const router = useRouter();
   const [progress, setProgress] = useState(0);
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -169,9 +171,11 @@ export default function CohortsPage() {
           </div>
 
           {/* Actions */}
-          <div style={{ marginTop: 20, borderTop: "1px solid var(--color-border-subtle)", paddingTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <OutlineButton size="small">View Learners</OutlineButton>
-            <OutlineButton size="small">View Missions</OutlineButton>
+          <div style={{ marginTop: 20, borderTop: "1px solid var(--color-border-subtle)", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <OutlineButton size="small" onClick={() => router.push("/admin/members")}>View Learners</OutlineButton>
+              <OutlineButton size="small" onClick={() => router.push("/admin/review")}>View Missions</OutlineButton>
+            </div>
             <PrimaryButton size="small">Manage</PrimaryButton>
           </div>
         </div>

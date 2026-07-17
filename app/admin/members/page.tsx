@@ -20,12 +20,16 @@ function GithubIcon() {
 
 export default function MembersPage() {
   const [search, setSearch] = useState("");
+  const [activeTrack, setActiveTrack] = useState("all");
 
-  const filtered = mockMembers.filter((m) =>
-    m.name.toLowerCase().includes(search.toLowerCase()) ||
-    m.role.toLowerCase().includes(search.toLowerCase()) ||
-    m.track.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = mockMembers.filter((m) => {
+    const matchesSearch =
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.role.toLowerCase().includes(search.toLowerCase()) ||
+      m.track.toLowerCase().includes(search.toLowerCase());
+    const matchesTrack = activeTrack === "all" || m.track === activeTrack;
+    return matchesSearch && matchesTrack;
+  });
 
   return (
     <div>
@@ -46,11 +50,32 @@ export default function MembersPage() {
           width: "100%", height: 40, padding: "0 14px", borderRadius: 10,
           backgroundColor: "var(--color-bg-surface-2)", border: "1px solid var(--color-border-strong)",
           color: "var(--color-text-primary)", fontFamily: font.body, fontSize: "14.5px", lineHeight: "22px", fontWeight: 400,
-          outline: "none", boxSizing: "border-box", marginBottom: 20,
+          outline: "none", boxSizing: "border-box",
         }}
         onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
         onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
       />
+
+      {/* Track filter */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, marginBottom: 20 }}>
+        <span style={{ fontFamily: font.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)" }}>Track:</span>
+        {([["all", "All"], ["Design Lab", "Design Lab"], ["Open Source Lab", "Open Source Lab"]] as const).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setActiveTrack(value)}
+            style={{
+              padding: "4px 12px", borderRadius: 999, cursor: "pointer",
+              fontFamily: font.mono, fontSize: 11, fontWeight: 500,
+              backgroundColor: activeTrack === value ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
+              border: `1px solid ${activeTrack === value ? "var(--color-indigo-border)" : "var(--color-border-strong)"}`,
+              color: activeTrack === value ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
+              transitionProperty: "background-color, border-color, color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* Table */}
       <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 14, overflow: "hidden" }}>
@@ -136,7 +161,12 @@ export default function MembersPage() {
             {/* Status */}
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               {member.status === "mentor" ? (
-                <span style={{ fontFamily: font.body, fontSize: 12, fontWeight: 500, color: "var(--color-indigo-text)" }}>Mentor</span>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", height: 20, padding: "3px 8px", borderRadius: 999,
+                  backgroundColor: "var(--color-indigo-subtle)", border: "1px solid var(--color-indigo-border)",
+                  color: "var(--color-indigo-text)", fontFamily: font.mono, fontSize: 10, fontWeight: 600,
+                  letterSpacing: "0.10em", textTransform: "uppercase",
+                }}>MENTOR</span>
               ) : (
                 <>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--color-success-text)", flexShrink: 0 }} />

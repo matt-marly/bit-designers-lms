@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, Copy } from "lucide-react";
+import { ArrowRight, CheckCircle, Copy } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { PrimaryButton } from "@/components/ui/custom/buttons";
 import { mockInvites } from "@/lib/mock-admin-data";
@@ -25,7 +25,7 @@ function TogglePill({ label, selected, onClick }: { label: string; selected: boo
       style={{
         padding: "8px 16px",
         borderRadius: 10,
-        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-subtle)"}`,
+        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-strong)"}`,
         backgroundColor: selected ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
         color: selected ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
         fontFamily: font.body,
@@ -76,6 +76,25 @@ export default function InvitesPage() {
       <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: "22px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 6, marginBottom: 32 }}>
         Generate invite links for learners to join a cohort.
       </p>
+
+      {/* 3-step workflow */}
+      <div style={{ display: "flex", gap: 0, alignItems: "center", marginBottom: 32 }}>
+        {[
+          { num: "01", title: "Generate Link", desc: "Choose track, cohort, and usage limit" },
+          { num: "02", title: "Share with Applicant", desc: "Copy and send the invite URL directly" },
+          { num: "03", title: "Learner Signs Up", desc: "They join with track and cohort pre-assigned" },
+        ].map((step, i) => (
+          <div key={step.num} style={{ display: "contents" }}>
+            <div style={{ flex: 1, textAlign: "center", padding: "0 16px" }}>
+              <p style={{ fontFamily: font.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)", margin: 0, marginBottom: 6 }}>{step.num}</p>
+              <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>{step.title}</p>
+              <p style={{ fontFamily: font.body, fontSize: 12, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 3 }}>{step.desc}</p>
+            </div>
+            {i < 2 && <ArrowRight style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />}
+          </div>
+        ))}
+      </div>
+      <div style={{ height: 1, backgroundColor: "var(--color-border-subtle)", marginBottom: 32 }} />
 
       {/* Generate card */}
       <div style={{ ...cardStyle, padding: 24, marginBottom: 32 }}>
@@ -157,6 +176,9 @@ export default function InvitesPage() {
             <div style={{ flex: "1 1 200px", minWidth: 0 }}>
               <p style={{ fontFamily: font.mono, fontSize: 14, lineHeight: "20px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>
                 {invite.code}
+              </p>
+              <p style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 400, color: "var(--color-text-tertiary)", margin: 0, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>
+                https://app.bitdesigners.africa/join/{invite.code}
               </p>
               <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
                 {[invite.track.toUpperCase(), invite.cohortName, `Expires ${new Date(invite.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`].map((tag) => (
