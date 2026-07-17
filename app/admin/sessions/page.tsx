@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
-import { PrimaryButton, OutlineButton } from "@/components/ui/custom/buttons";
+import { PrimaryButton } from "@/components/ui/custom/buttons";
 import { mockSessions } from "@/lib/mock-live-data";
 import type { LiveSession } from "@/lib/mock-live-data";
 
@@ -19,23 +19,38 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 14,
 };
 
-function TogglePill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "8px 16px", borderRadius: 10,
-        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-strong)"}`,
-        backgroundColor: selected ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
-        color: selected ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
-        fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer",
-        transitionProperty: "background-color, border-color, color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+const labelStyle: React.CSSProperties = {
+  fontFamily: font.mono,
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  color: "#B5B5B5",
+  display: "block",
+  marginBottom: 8,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  height: 40,
+  padding: "0 14px",
+  borderRadius: 10,
+  backgroundColor: "#181818",
+  border: "1px solid #333333",
+  color: "#FFFFFF",
+  fontFamily: font.body,
+  fontSize: 14,
+  fontWeight: 400,
+  outline: "none",
+  boxSizing: "border-box",
+  appearance: "none",
+  WebkitAppearance: "none",
+};
+
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  cursor: "pointer",
+};
 
 function formatSessionDate(date: string, time: string, tz: string): string {
   const d = new Date(date + "T" + time);
@@ -51,32 +66,72 @@ function formatSessionDate(date: string, time: string, tz: string): string {
 
 function StatusBadge({ status }: { status: string }) {
   const styles = {
-    upcoming: { bg: "var(--color-indigo-subtle)", text: "var(--color-indigo-text)", border: "var(--color-indigo-border)", label: "UPCOMING", dot: false },
-    recorded: { bg: "var(--color-bg-surface-3)", text: "var(--color-text-tertiary)", border: "var(--color-border-subtle)", label: "RECORDED", dot: false },
-    live: { bg: "var(--color-success-subtle)", text: "var(--color-success-text)", border: "var(--color-success-border)", label: "LIVE", dot: true },
-  }[status] ?? { bg: "var(--color-bg-surface-3)", text: "var(--color-text-tertiary)", border: "var(--color-border-subtle)", label: status.toUpperCase(), dot: false };
+    upcoming: {
+      bg: "rgba(99,102,241,0.12)",
+      text: "#A5B4FC",
+      border: "rgba(99,102,241,0.35)",
+      label: "UPCOMING",
+    },
+    recorded: {
+      bg: "#202020",
+      text: "#737373",
+      border: "#242424",
+      label: "RECORDED",
+    },
+    live: {
+      bg: "rgba(34,197,94,0.10)",
+      text: "#4ADE80",
+      border: "rgba(34,197,94,0.30)",
+      label: "LIVE",
+    },
+  }[status] ?? {
+    bg: "#202020",
+    text: "#737373",
+    border: "#242424",
+    label: status.toUpperCase(),
+  };
 
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4, height: 20, padding: "0 8px", borderRadius: 999,
-      backgroundColor: styles.bg, border: `1px solid ${styles.border}`,
-      fontFamily: font.mono, fontSize: 10, fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: styles.text,
-    }}>
-      {styles.dot && (
-        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: styles.text, animation: "pulse 2s infinite" }} />
-      )}
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "3px 8px",
+        borderRadius: 999,
+        backgroundColor: styles.bg,
+        border: `1px solid ${styles.border}`,
+        fontFamily: font.mono,
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: "0.10em",
+        textTransform: "uppercase",
+        color: styles.text,
+      }}
+    >
       {styles.label}
     </span>
   );
 }
 
+function handleFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+  e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)";
+  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)";
+}
+
+function handleBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+  e.currentTarget.style.borderColor = "#333333";
+  e.currentTarget.style.boxShadow = "none";
+}
+
 export default function SessionsPage() {
-  const [sessions, setSessions] = useState<LiveSession[]>(mockSessions);
+  const [sessions, setSessions] = useState<LiveSession[]>([...mockSessions]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [duration, setDuration] = useState(90);
+  const [duration, setDuration] = useState(60);
+  const [cohort, setCohort] = useState("Cohort 01");
   const [link, setLink] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -89,7 +144,7 @@ export default function SessionsPage() {
       title: title.trim(),
       description: description.trim(),
       host: "Adeyemi Matthew",
-      cohort: "Cohort 01",
+      cohort,
       date,
       time,
       timezone: "WAT",
@@ -104,21 +159,42 @@ export default function SessionsPage() {
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
-      setTitle(""); setDescription(""); setDate(""); setTime(""); setDuration(90); setLink("");
+      setTitle("");
+      setDescription("");
+      setDate("");
+      setTime("");
+      setDuration(60);
+      setCohort("Cohort 01");
+      setLink("");
     }, 2000);
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%", height: 40, padding: "0 14px", borderRadius: 10,
-    backgroundColor: "var(--color-bg-surface-2)", border: "1px solid var(--color-border-strong)",
-    color: "var(--color-text-primary)", fontFamily: font.body, fontSize: "14.5px", lineHeight: "22px", fontWeight: 400,
-    outline: "none", boxSizing: "border-box",
-  };
-
   return (
     <div>
-      <h1 style={{ fontFamily: font.display, fontSize: 36, lineHeight: "42px", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: 0 }}>Sessions</h1>
-      <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: "22px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 6, marginBottom: 32 }}>Schedule and manage live sessions</p>
+      <style>{`
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator,
+        input[type="date"]::-webkit-inner-spin-button,
+        input[type="time"]::-webkit-inner-spin-button {
+          display: none;
+          -webkit-appearance: none;
+        }
+      `}</style>
+
+      <h1
+        style={{
+          fontFamily: font.display,
+          fontSize: 36,
+          lineHeight: "42px",
+          fontWeight: 600,
+          letterSpacing: "-0.02em",
+          color: "var(--color-text-primary)",
+          margin: 0,
+        }}
+      >
+        Sessions
+      </h1>
+      <div style={{ marginBottom: 32 }} />
 
       {/* Schedule form */}
       <div style={{ ...cardStyle, padding: 24, marginBottom: 32 }}>
@@ -127,62 +203,119 @@ export default function SessionsPage() {
         {showSuccess ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20 }}>
             <CheckCircle style={{ width: 16, height: 16, color: "var(--color-success-text)" }} />
-            <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-success-text)" }}>Session scheduled</span>
+            <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-success-text)" }}>
+              Session scheduled
+            </span>
           </div>
         ) : (
           <>
             <div style={{ marginTop: 20 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Title</label>
-              <input type="text" placeholder="Session title..." value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
+              <label style={labelStyle}>Title</label>
+              <input
+                type="text"
+                placeholder="Session title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                style={inputStyle}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
               />
             </div>
 
             <div style={{ marginTop: 16 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Description</label>
-              <textarea rows={3} placeholder="Session description..." value={description} onChange={(e) => setDescription(e.target.value)}
-                style={{ ...inputStyle, height: "auto", padding: "12px 14px", minHeight: 80, resize: "vertical" }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
+              <label style={labelStyle}>Description</label>
+              <textarea
+                rows={3}
+                placeholder="Session description..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  height: "auto",
+                  padding: "12px 14px",
+                  minHeight: 80,
+                  resize: "vertical",
+                }}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
               />
             </div>
 
             <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 140px" }}>
-                <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Date</label>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
+                <label style={labelStyle}>Date</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="DD / MM / YYYY"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  style={inputStyle}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                />
               </div>
               <div style={{ flex: "1 1 140px" }}>
-                <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Time</label>
-                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
+                <label style={labelStyle}>Time</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="00:00"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  style={inputStyle}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                />
               </div>
             </div>
 
             <div style={{ marginTop: 16 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Duration</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                {[60, 90, 120].map((d) => (
-                  <TogglePill key={d} label={`${d} min`} selected={duration === d} onClick={() => setDuration(d)} />
-                ))}
-              </div>
+              <label style={labelStyle}>Duration</label>
+              <select
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                style={selectStyle}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+              >
+                <option value={60}>60 min</option>
+                <option value={90}>90 min</option>
+                <option value={120}>120 min</option>
+              </select>
             </div>
 
             <div style={{ marginTop: 16 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Cohort</label>
-              <TogglePill label="Cohort 01" selected onClick={() => {}} />
+              <label style={labelStyle}>Cohort</label>
+              <select
+                value={cohort}
+                onChange={(e) => setCohort(e.target.value)}
+                style={selectStyle}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+              >
+                <option value="Cohort 01">Cohort 01</option>
+                <option value="Cohort 02">Cohort 02</option>
+              </select>
             </div>
 
             <div style={{ marginTop: 16 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Meeting link</label>
-              <input type="url" placeholder="https://zoom.us/..." value={link} onChange={(e) => setLink(e.target.value)} style={inputStyle}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
+              <label style={labelStyle}>Meeting link</label>
+              <input
+                type="url"
+                placeholder="https://zoom.us/..."
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                style={inputStyle}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
               />
             </div>
 
             <div style={{ marginTop: 20 }}>
-              <PrimaryButton fullWidth disabled={!canSchedule} onClick={handleSchedule}>Schedule Session</PrimaryButton>
+              <PrimaryButton fullWidth disabled={!canSchedule} onClick={handleSchedule}>
+                Schedule Session
+              </PrimaryButton>
               {!canSchedule && (
                 <p
                   style={{
@@ -205,56 +338,148 @@ export default function SessionsPage() {
       </div>
 
       {/* Sessions list */}
-      <SectionLabel>ALL SESSIONS</SectionLabel>
-      <div style={{ marginTop: 16, border: "1px solid var(--color-border-subtle)", borderRadius: 14, overflow: "hidden" }}>
+      <div
+        style={{
+          fontFamily: font.mono,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          color: "#737373",
+          marginBottom: 16,
+        }}
+      >
+        ALL SESSIONS
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #242424",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
         {sessions.map((session, i) => (
           <div
             key={session.slug}
             style={{
               padding: "16px 20px",
-              borderBottom: i < sessions.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
-              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
-              transitionProperty: "background-color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
+              borderBottom: i < sessions.length - 1 ? "1px solid #242424" : "none",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#1C1C1C")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
           >
             {/* Left */}
-            <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-              <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>{session.title}</p>
-              <p style={{ fontFamily: font.mono, fontSize: 12, fontWeight: 500, color: "var(--color-text-tertiary)", margin: 0, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
+              <span
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "#FFFFFF",
+                }}
+              >
+                {session.title}
+              </span>
+              <span
+                style={{
+                  fontFamily: font.mono,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#737373",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {formatSessionDate(session.date, session.time, session.timezone)}
-              </p>
-              <p style={{ fontFamily: font.body, fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 2 }}>
-                {session.host} · {session.duration} min
-              </p>
+              </span>
+              <span
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 13,
+                  fontWeight: 400,
+                  color: "#B5B5B5",
+                }}
+              >
+                with {session.host} · {session.duration} min
+              </span>
             </div>
 
             {/* Center: status */}
             <StatusBadge status={session.status} />
 
             {/* Right: actions */}
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0, marginLeft: 16 }}>
               {session.status === "upcoming" && (
                 <>
-                  <OutlineButton size="small">Edit</OutlineButton>
                   <button
-                    className="inline-flex items-center justify-center"
                     style={{
-                      height: 32, padding: "0 12px", borderRadius: 10, backgroundColor: "transparent",
-                      color: "var(--color-text-primary)", border: "1px solid var(--color-border-strong)",
-                      fontFamily: font.body, fontSize: "14.5px", fontWeight: 500, cursor: "pointer",
-                      transitionProperty: "background-color, border-color, color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
+                      height: 28,
+                      padding: "0 12px",
+                      borderRadius: 8,
+                      backgroundColor: "transparent",
+                      border: "1px solid #333333",
+                      color: "#FFFFFF",
+                      fontFamily: font.body,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transitionProperty: "background-color, border-color, color",
+                      transitionDuration: "var(--duration-fast)",
+                      transitionTimingFunction: "var(--ease-out-quart)",
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-danger-border)"; e.currentTarget.style.color = "var(--color-danger-text)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.color = "var(--color-text-primary)"; }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    style={{
+                      height: 28,
+                      padding: "0 12px",
+                      borderRadius: 8,
+                      backgroundColor: "transparent",
+                      border: "1px solid #333333",
+                      color: "#FFFFFF",
+                      fontFamily: font.body,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transitionProperty: "background-color, border-color, color",
+                      transitionDuration: "var(--duration-fast)",
+                      transitionTimingFunction: "var(--ease-out-quart)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(239,68,68,0.55)";
+                      e.currentTarget.style.color = "#F87171";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "#333333";
+                      e.currentTarget.style.color = "#FFFFFF";
+                    }}
                   >
                     Cancel
                   </button>
                 </>
               )}
               {session.status === "recorded" && (
-                <OutlineButton size="small">Add Recording</OutlineButton>
+                <button
+                  style={{
+                    height: 28,
+                    padding: "0 12px",
+                    borderRadius: 8,
+                    backgroundColor: "transparent",
+                    border: "1px solid #333333",
+                    color: "#FFFFFF",
+                    fontFamily: font.body,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    transitionProperty: "background-color, border-color, color",
+                    transitionDuration: "var(--duration-fast)",
+                    transitionTimingFunction: "var(--ease-out-quart)",
+                  }}
+                >
+                  Add Recording
+                </button>
               )}
             </div>
           </div>
