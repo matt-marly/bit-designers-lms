@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, CheckCircle, Copy } from "lucide-react";
+import { CheckCircle, ChevronDown, Copy } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { PrimaryButton } from "@/components/ui/custom/buttons";
 import { mockInvites } from "@/lib/mock-admin-data";
@@ -18,32 +18,20 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 14,
 };
 
-function TogglePill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "8px 16px",
-        borderRadius: 10,
-        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-strong)"}`,
-        backgroundColor: selected ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
-        color: selected ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
-        fontFamily: font.body,
-        fontSize: 13,
-        fontWeight: 500,
-        cursor: "pointer",
-        transitionProperty: "background-color, border-color, color",
-        transitionDuration: "var(--duration-fast)",
-        transitionTimingFunction: "var(--ease-out-quart)",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+const fieldLabelStyle: React.CSSProperties = {
+  fontFamily: "var(--font-mono)",
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  color: "#B5B5B5",
+  display: "block",
+  marginBottom: 8,
+};
 
 export default function InvitesPage() {
   const [selectedTrack, setSelectedTrack] = useState("Design Lab");
+  const [selectedCohort, setSelectedCohort] = useState("cohort-01");
   const [selectedLimit, setSelectedLimit] = useState(10);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -70,56 +58,122 @@ export default function InvitesPage() {
 
   return (
     <div>
-      <h1 style={{ fontFamily: font.display, fontSize: 36, lineHeight: "42px", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: 0 }}>
+      <style>{`
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type=number] { -moz-appearance: textfield; }
+      `}</style>
+      <h1 style={{ fontFamily: font.display, fontSize: 36, lineHeight: "42px", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: 0, marginBottom: 32 }}>
         Invite Links
       </h1>
-      <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: "22px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 6, marginBottom: 32 }}>
-        Generate invite links for learners to join a cohort.
-      </p>
-
-      {/* 3-step workflow */}
-      <div style={{ display: "flex", gap: 0, alignItems: "center", marginBottom: 32 }}>
-        {[
-          { num: "01", title: "Generate Link", desc: "Choose track, cohort, and usage limit" },
-          { num: "02", title: "Share with Applicant", desc: "Copy and send the invite URL directly" },
-          { num: "03", title: "Learner Signs Up", desc: "They join with track and cohort pre-assigned" },
-        ].map((step, i) => (
-          <div key={step.num} style={{ display: "contents" }}>
-            <div style={{ flex: 1, textAlign: "center", padding: "0 16px" }}>
-              <p style={{ fontFamily: font.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)", margin: 0, marginBottom: 6 }}>{step.num}</p>
-              <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>{step.title}</p>
-              <p style={{ fontFamily: font.body, fontSize: 12, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 3 }}>{step.desc}</p>
-            </div>
-            {i < 2 && <ArrowRight style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />}
-          </div>
-        ))}
-      </div>
-      <div style={{ height: 1, backgroundColor: "var(--color-border-subtle)", marginBottom: 32 }} />
 
       {/* Generate card */}
       <div style={{ ...cardStyle, padding: 24, marginBottom: 32 }}>
         <SectionLabel>GENERATE NEW INVITE</SectionLabel>
 
         <div style={{ marginTop: 20 }}>
-          <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Track</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <TogglePill label="Design Lab" selected={selectedTrack === "Design Lab"} onClick={() => setSelectedTrack("Design Lab")} />
-            <TogglePill label="Open Source Lab" selected={selectedTrack === "Open Source Lab"} onClick={() => setSelectedTrack("Open Source Lab")} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: 20 }}>
-          <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Cohort</label>
-          <TogglePill label="Cohort 01" selected onClick={() => {}} />
-        </div>
-
-        <div style={{ marginTop: 20 }}>
-          <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Usage limit</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {[5, 10, 20].map((n) => (
-              <TogglePill key={n} label={String(n)} selected={selectedLimit === n} onClick={() => setSelectedLimit(n)} />
+          <label style={fieldLabelStyle}>Track</label>
+          <div style={{ display: "flex", gap: 0, border: "1px solid #333333", borderRadius: 8, overflow: "hidden", width: "fit-content" }}>
+            {(["Design Lab", "Open Source Lab"] as const).map((track, i) => (
+              <button
+                key={track}
+                onClick={() => setSelectedTrack(track)}
+                style={{
+                  height: 36,
+                  padding: "0 20px",
+                  border: "none",
+                  borderRight: i === 0 ? "1px solid #333333" : "none",
+                  borderRadius: 0,
+                  fontFamily: font.body,
+                  fontSize: 14,
+                  fontWeight: selectedTrack === track ? 500 : 400,
+                  color: selectedTrack === track ? "#A5B4FC" : "#737373",
+                  backgroundColor: selectedTrack === track ? "rgba(99,102,241,0.12)" : "transparent",
+                  cursor: "pointer",
+                  transition: "background-color 120ms ease",
+                }}
+              >
+                {track}
+              </button>
             ))}
           </div>
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <label style={fieldLabelStyle}>Cohort</label>
+          <div style={{ position: "relative" }}>
+            <select
+              value={selectedCohort}
+              onChange={(e) => setSelectedCohort(e.target.value)}
+              style={{
+                height: 40,
+                width: "100%",
+                backgroundColor: "#181818",
+                border: "1px solid #333333",
+                borderRadius: 10,
+                padding: "0 14px",
+                paddingRight: 40,
+                fontFamily: font.body,
+                fontSize: 14,
+                color: "#FFFFFF",
+                cursor: "pointer",
+                outline: "none",
+                appearance: "none",
+                WebkitAppearance: "none",
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "#333333"; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <option value="cohort-01">Cohort 01</option>
+              <option value="cohort-02">Cohort 02</option>
+              <option value="cohort-03">Cohort 03</option>
+            </select>
+            <ChevronDown
+              style={{
+                position: "absolute",
+                right: 14,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 16,
+                height: 16,
+                color: "#737373",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <label style={fieldLabelStyle}>Usage limit</label>
+          <input
+            type="number"
+            min={1}
+            value={selectedLimit}
+            onChange={(e) => setSelectedLimit(Number(e.target.value))}
+            style={{
+              height: 40,
+              width: "100%",
+              backgroundColor: "#181818",
+              border: "1px solid #333333",
+              borderRadius: 10,
+              padding: "0 14px",
+              fontFamily: font.body,
+              fontSize: 14,
+              color: "#FFFFFF",
+              outline: "none",
+              appearance: "none",
+              WebkitAppearance: "none",
+              MozAppearance: "textfield" as React.CSSProperties["MozAppearance"],
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "#333333"; e.currentTarget.style.boxShadow = "none"; }}
+          />
+          <p style={{ fontFamily: font.body, fontSize: 12, color: "#737373", margin: 0, marginTop: 6 }}>
+            Number of learners who can use this link
+          </p>
         </div>
 
         <div style={{ marginTop: 20 }}>
@@ -127,7 +181,7 @@ export default function InvitesPage() {
         </div>
 
         {generatedCode && (
-          <div style={{ marginTop: 12, backgroundColor: "var(--color-bg-surface-2)", border: "1px solid var(--color-border-subtle)", borderRadius: 14, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ marginTop: 12, backgroundColor: "#181818", border: "1px solid #242424", borderRadius: 10, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div>
               <SectionLabel>INVITE CODE</SectionLabel>
               <p style={{ fontFamily: font.mono, fontSize: 16, lineHeight: "22px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0, marginTop: 6 }}>
@@ -139,10 +193,10 @@ export default function InvitesPage() {
               className="inline-flex items-center justify-center"
               style={{
                 height: 32, padding: "0 12px", borderRadius: 10,
-                backgroundColor: copiedId === "generated" ? "transparent" : "var(--color-indigo)",
-                color: copiedId === "generated" ? "var(--color-success-text)" : "var(--color-text-on-accent)",
-                border: copiedId === "generated" ? "1px solid var(--color-success-border)" : "none",
-                fontFamily: font.body, fontSize: "14.5px", fontWeight: 500, gap: 6, cursor: "pointer", whiteSpace: "nowrap",
+                backgroundColor: copiedId === "generated" ? "transparent" : "transparent",
+                color: copiedId === "generated" ? "var(--color-success-text)" : "#FFFFFF",
+                border: copiedId === "generated" ? "1px solid var(--color-success-border)" : "1px solid #333333",
+                fontFamily: font.body, fontSize: 13, fontWeight: 500, gap: 6, cursor: "pointer", whiteSpace: "nowrap",
               }}
             >
               {copiedId === "generated" ? (<><CheckCircle style={{ width: 14, height: 14 }} />Copied!</>) : (<><Copy style={{ width: 14, height: 14 }} />Copy Link</>)}
@@ -153,13 +207,13 @@ export default function InvitesPage() {
 
       {/* Existing invites */}
       <SectionLabel>ACTIVE INVITES</SectionLabel>
-      <div style={{ marginTop: 16, border: "1px solid var(--color-border-subtle)", borderRadius: 14, overflow: "hidden" }}>
+      <div style={{ marginTop: 16, border: "1px solid #242424", borderRadius: 12, overflow: "hidden" }}>
         {inviteList.map((invite, i) => (
           <div
             key={invite.id}
             style={{
               padding: "16px 20px",
-              borderBottom: i < inviteList.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
+              borderBottom: i < inviteList.length - 1 ? "1px solid #242424" : "none",
               opacity: invite.status === "inactive" ? 0.5 : 1,
               transitionProperty: "background-color",
               transitionDuration: "var(--duration-fast)",
