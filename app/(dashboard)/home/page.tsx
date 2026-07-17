@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Clock, Target, Radio, Megaphone, FileText } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Target, Radio, Megaphone, FileText } from "lucide-react";
+import { mockUnits } from "@/lib/mock-learn-data";
 
 // ---------------------------------------------------------------------------
 // Mock data — replaced with Supabase queries later
@@ -307,24 +309,18 @@ export default function HomePage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring}
-      style={{
-        maxWidth: 880,
-        margin: "0 auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: 48,
-      }}
+      style={{ maxWidth: 880, margin: "0 auto" }}
     >
-      {/* ── SECTION 1: Page Header (§4.9) ── */}
-      <header>
+      {/* ── ZONE 1: Page Header ── */}
+      <header style={{ marginBottom: 28 }}>
         <h1
           style={{
             fontFamily: font.display,
-            fontSize: 36,
-            lineHeight: "42px",
-            fontWeight: 600,
+            fontSize: 32,
+            lineHeight: "38px",
+            fontWeight: 700,
             letterSpacing: "-0.02em",
-            color: "var(--color-text-primary)",
+            color: "#FFFFFF",
             margin: 0,
           }}
         >
@@ -333,109 +329,26 @@ export default function HomePage() {
         <p
           style={{
             fontFamily: font.mono,
-            fontSize: 13,
-            lineHeight: "18px",
-            fontWeight: 500,
-            letterSpacing: "0",
+            fontSize: 11,
+            lineHeight: "14px",
+            fontWeight: 600,
+            letterSpacing: "0.10em",
             textTransform: "uppercase",
-            color: "var(--color-text-tertiary)",
-            marginTop: 10,
+            color: "#737373",
+            marginTop: 6,
           }}
         >
           Cohort 01 · {cohort.track} · Week {pad2(cohort.currentWeek)} / {cohort.totalWeeks}
         </p>
       </header>
 
-      {/* ── SECTION 2: Next Step Card (§4.1 featured card, §4.4) ── */}
-      <motion.section {...sectionAnim(0)}>
-        <div style={{ ...cardStyle, padding: 32 }}>
-          <SectionLabel color="var(--color-indigo-text)">Up Next</SectionLabel>
-
-          <h2
-            style={{
-              fontFamily: font.display,
-              fontSize: 26,
-              lineHeight: "32px",
-              fontWeight: 600,
-              letterSpacing: "-0.015em",
-              color: "var(--color-text-primary)",
-              margin: 0,
-              marginTop: 12,
-            }}
-          >
-            {nextModule.label}
-          </h2>
-
-          {/* Metadata row + BTC badge */}
-          <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
-            <span
-              style={{
-                fontFamily: font.mono,
-                fontSize: 13,
-                lineHeight: "18px",
-                fontWeight: 500,
-                color: "var(--color-text-tertiary)",
-                textTransform: "uppercase",
-              }}
-            >
-              {nextModule.unit} · {nextModule.module} · {nextModule.lesson}
-            </span>
-            <Badge variant="btc">BTC</Badge>
-          </div>
-
-          {/* Progress bar */}
-          <div
-            style={{
-              marginTop: 20,
-              height: 3,
-              width: "100%",
-              borderRadius: "var(--radius-full)",
-              backgroundColor: "var(--color-bg-surface-2)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${progress}%`,
-                transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
-                height: 3,
-                backgroundColor: "var(--color-indigo)",
-                borderRadius: "var(--radius-full)",
-              }}
-            />
-          </div>
-
-          {/* Progress text */}
-          <p
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 500,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-              marginTop: 8,
-            }}
-          >
-            {nextModule.progressPercent}% of module complete
-          </p>
-
-          {/* Action row */}
-          <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8 }}>
-            <PrimaryButton icon={BookOpen}>Continue learning</PrimaryButton>
-            <OutlineButton icon={FileText}>View syllabus</OutlineButton>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ── SECTION 3: Stats Row (§6.5) ── */}
+      {/* ── ZONE 2: Stat Row ── */}
       <section
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 16,
-          alignItems: "stretch",
+          gap: 12,
+          marginBottom: 28,
         }}
         className="max-sm:!grid-cols-1"
       >
@@ -444,19 +357,19 @@ export default function HomePage() {
             label: "CURRENT WEEK",
             value: `W${pad2(cohort.currentWeek)}`,
             sub: `OF ${cohort.totalWeeks} WEEKS`,
-            valueColor: "var(--color-indigo-text)",
+            valueColor: "#6366F1",
           },
           {
             label: "MODULES COMPLETE",
             value: pad2(stats.modulesComplete),
             sub: `OF ${stats.modulesTotal} MODULES`,
-            valueColor: "var(--color-text-primary)",
+            valueColor: "#FFFFFF",
           },
           {
             label: "MISSIONS",
             value: pad2(stats.missionsPassed),
             sub: `PASSED · ${pad2(stats.missionsPending)} PENDING`,
-            valueColor: "var(--color-text-primary)",
+            valueColor: "#FFFFFF",
           },
         ].map((stat, i) => (
           <motion.div
@@ -465,20 +378,18 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...spring, delay: 0.06 + i * 0.06 }}
             style={{
-              ...cardStyle,
-              padding: 20,
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              height: "100%",
+              backgroundColor: "#111111",
+              border: "1px solid #242424",
+              borderRadius: 14,
+              padding: "20px 24px",
             }}
           >
             <SectionLabel>{stat.label}</SectionLabel>
             <p
               style={{
                 fontFamily: font.mono,
-                fontSize: 30,
-                lineHeight: "34px",
+                fontSize: 32,
+                lineHeight: "36px",
                 fontWeight: 600,
                 letterSpacing: "-0.02em",
                 color: stat.valueColor,
@@ -492,13 +403,14 @@ export default function HomePage() {
             <p
               style={{
                 fontFamily: font.mono,
-                fontSize: 13,
-                lineHeight: "18px",
-                fontWeight: 500,
-                color: "var(--color-text-tertiary)",
+                fontSize: 11,
+                lineHeight: "14px",
+                fontWeight: 600,
+                letterSpacing: "0.10em",
+                color: "#737373",
                 textTransform: "uppercase",
                 margin: 0,
-                marginTop: 6,
+                marginTop: 4,
                 fontVariantNumeric: "tabular-nums",
               }}
             >
@@ -508,126 +420,325 @@ export default function HomePage() {
         ))}
       </section>
 
-      {/* ── SECTION 4: Current Mission ── */}
-      <motion.section {...sectionAnim(0.12)}>
-        <div style={cardStyle}>
-          <SectionLabel color="var(--color-warning-text)">Current Mission</SectionLabel>
+      {/* ── ZONE 3: Two-Column Grid ── */}
+      <div
+        className="grid grid-cols-1 md:grid-cols-[1fr_0.55fr]"
+        style={{ gap: 16, marginBottom: 28, alignItems: "start" }}
+      >
+        {/* Card A — Up Next (left col, row 1) */}
+        <motion.div
+          className="order-1 md:col-start-1 md:row-start-1"
+          {...sectionAnim(0)}
+        >
+          <div style={{ ...cardStyle, padding: 32 }}>
+            <SectionLabel color="#A5B4FC">Up Next</SectionLabel>
 
-          <h2
-            style={{
-              fontFamily: font.display,
-              fontSize: 20,
-              lineHeight: "26px",
-              fontWeight: 600,
-              letterSpacing: "-0.01em",
-              color: "var(--color-text-primary)",
-              margin: 0,
-              marginTop: 12,
-            }}
-          >
-            {currentMission.title}
-          </h2>
-
-          {/* Deadline + StatusPill — same row, 8px gap */}
-          <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
-            <span
+            <h2
               style={{
-                fontFamily: font.mono,
-                fontSize: 13,
-                lineHeight: "18px",
-                fontWeight: 500,
-                color: "var(--color-warning-text)",
-                textTransform: "uppercase",
-                fontVariantNumeric: "tabular-nums",
+                fontFamily: font.display,
+                fontSize: 22,
+                lineHeight: "28px",
+                fontWeight: 600,
+                letterSpacing: "-0.015em",
+                color: "var(--color-text-primary)",
+                margin: 0,
+                marginTop: 12,
               }}
             >
-              Due in {currentMission.dueInDays} days
-            </span>
-            <StatusPill label={currentMission.status} variant="indigo" />
-          </div>
+              {nextModule.label}
+            </h2>
 
-          {/* Action row */}
-          <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8 }}>
-            <PrimaryButton icon={Target}>Submit deliverable</PrimaryButton>
-            <OutlineButton icon={FileText}>Mission brief</OutlineButton>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ── SECTION 5: Next Live Workshop ── */}
-      <motion.section {...sectionAnim(0.18)}>
-        <div style={cardStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <SectionLabel>Next Live Session</SectionLabel>
-            <Badge variant="indigo">Live</Badge>
-          </div>
-
-          {nextWorkshop ? (
-            <>
-              <h2
+            <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <span
                 style={{
-                  fontFamily: font.display,
-                  fontSize: 20,
-                  lineHeight: "26px",
+                  fontFamily: font.mono,
+                  fontSize: 11,
+                  lineHeight: "14px",
                   fontWeight: 600,
-                  letterSpacing: "-0.01em",
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                  marginTop: 12,
+                  letterSpacing: "0.10em",
+                  color: "#737373",
+                  textTransform: "uppercase",
                 }}
               >
-                {nextWorkshop.title}
-              </h2>
-              <p
+                {nextModule.unit} · {nextModule.module} · {nextModule.lesson}
+              </span>
+              <Badge variant="btc">BTC</Badge>
+            </div>
+
+            <div
+              style={{
+                marginTop: 20,
+                height: 3,
+                width: "100%",
+                borderRadius: 999,
+                backgroundColor: "var(--color-bg-surface-2)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${progress}%`,
+                  transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  height: 3,
+                  backgroundColor: "#6366F1",
+                  borderRadius: 999,
+                }}
+              />
+            </div>
+
+            <p
+              style={{
+                fontFamily: font.mono,
+                fontSize: 11,
+                lineHeight: "14px",
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--color-text-tertiary)",
+                marginTop: 8,
+              }}
+            >
+              {nextModule.progressPercent}% of module complete
+            </p>
+
+            <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8 }}>
+              <PrimaryButton icon={BookOpen}>Continue learning</PrimaryButton>
+              <OutlineButton icon={FileText}>View syllabus</OutlineButton>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Card B — Current Mission (left col, row 2) */}
+        <motion.div
+          className="order-3 md:order-none md:col-start-1 md:row-start-2"
+          {...sectionAnim(0.12)}
+        >
+          <div style={cardStyle}>
+            <SectionLabel color="#A5B4FC">Current Mission</SectionLabel>
+
+            <h2
+              style={{
+                fontFamily: font.display,
+                fontSize: 18,
+                lineHeight: "24px",
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+                color: "var(--color-text-primary)",
+                margin: 0,
+                marginTop: 12,
+              }}
+            >
+              {currentMission.title}
+            </h2>
+
+            <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <span
                 style={{
                   fontFamily: font.mono,
                   fontSize: 13,
                   lineHeight: "18px",
                   fontWeight: 500,
-                  color: "var(--color-text-tertiary)",
+                  color: "#F59E0B",
                   textTransform: "uppercase",
-                  margin: 0,
-                  marginTop: 6,
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {nextWorkshop.date}
-              </p>
+                Due in {currentMission.dueInDays} days
+              </span>
+              <StatusPill label={currentMission.status} variant="indigo" />
+            </div>
+
+            <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8 }}>
+              <PrimaryButton icon={Target}>Submit deliverable</PrimaryButton>
+              <OutlineButton icon={FileText}>Mission brief</OutlineButton>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Card C — Next Live Session (right col, row 1) */}
+        <motion.div
+          className="order-2 md:order-none md:col-start-2 md:row-start-1"
+          {...sectionAnim(0.06)}
+        >
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <SectionLabel>Next Live Session</SectionLabel>
+              <Badge variant="indigo">Live</Badge>
+            </div>
+
+            {nextWorkshop ? (
+              <>
+                <h2
+                  style={{
+                    fontFamily: font.display,
+                    fontSize: 20,
+                    lineHeight: "26px",
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                    color: "var(--color-text-primary)",
+                    margin: 0,
+                    marginTop: 12,
+                  }}
+                >
+                  {nextWorkshop.title}
+                </h2>
+                <p
+                  style={{
+                    fontFamily: font.mono,
+                    fontSize: 13,
+                    lineHeight: "18px",
+                    fontWeight: 500,
+                    color: "var(--color-text-tertiary)",
+                    textTransform: "uppercase",
+                    margin: 0,
+                    marginTop: 6,
+                  }}
+                >
+                  {nextWorkshop.date}
+                </p>
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: "14.5px",
+                    lineHeight: "22px",
+                    fontWeight: 400,
+                    color: "var(--color-text-secondary)",
+                    margin: 0,
+                    marginTop: 4,
+                  }}
+                >
+                  with {nextWorkshop.host}
+                </p>
+
+                <div style={{ marginTop: 24 }}>
+                  <OutlineButton icon={Radio}>Add to calendar</OutlineButton>
+                </div>
+              </>
+            ) : (
               <p
                 style={{
                   fontFamily: font.body,
-                  fontSize: "14.5px",
-                  lineHeight: "22px",
+                  fontSize: 13,
+                  lineHeight: "19px",
                   fontWeight: 400,
-                  color: "var(--color-text-secondary)",
-                  margin: 0,
-                  marginTop: 4,
+                  color: "var(--color-text-tertiary)",
+                  marginTop: 12,
                 }}
               >
-                with {nextWorkshop.host}
+                No upcoming sessions. Check back soon.
               </p>
+            )}
+          </div>
+        </motion.div>
 
-              <div style={{ marginTop: 24 }}>
-                <OutlineButton icon={Radio}>Add to calendar</OutlineButton>
-              </div>
-            </>
-          ) : (
-            <p
+        {/* Card D — Module Progress (right col, row 2) */}
+        <motion.div
+          className="order-4 md:order-none md:col-start-2 md:row-start-2"
+          {...sectionAnim(0.18)}
+        >
+          <div
+            style={{
+              backgroundColor: "#111111",
+              border: "1px solid #242424",
+              borderRadius: 14,
+              padding: 24,
+            }}
+          >
+            <SectionLabel>Module Progress</SectionLabel>
+
+            <div style={{ marginTop: 16 }}>
+              {mockUnits.map((unit) => {
+                const complete = unit.modules.filter((m) => m.status === "passed").length;
+                const total = unit.modules.length;
+                const pct = total > 0 ? (complete / total) * 100 : 0;
+
+                return (
+                  <div key={unit.id} style={{ marginBottom: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span
+                        style={{
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: "#FFFFFF",
+                        }}
+                      >
+                        {unit.title}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: font.mono,
+                          fontSize: 11,
+                          color: "#737373",
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {complete} / {total}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 6,
+                        height: 3,
+                        backgroundColor: "#1C1C1C",
+                        borderRadius: 999,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          height: 3,
+                          backgroundColor: "#6366F1",
+                          borderRadius: 999,
+                          transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
+                        }}
+                      />
+                    </div>
+
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 10,
+                        color: "#4A4A4A",
+                        textTransform: "uppercase",
+                        marginTop: 4,
+                        display: "block",
+                      }}
+                    >
+                      Unit {unit.number}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div
               style={{
-                fontFamily: font.body,
-                fontSize: 13,
-                lineHeight: "19px",
-                fontWeight: 400,
-                color: "var(--color-text-tertiary)",
-                marginTop: 12,
+                marginTop: 16,
+                borderTop: "1px solid #242424",
+                paddingTop: 16,
               }}
             >
-              No upcoming sessions. Check back soon.
-            </p>
-          )}
-        </div>
-      </motion.section>
+              <Link
+                href="/learn"
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 13,
+                  color: "#6366F1",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+              >
+                View all modules →
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
-      {/* ── SECTION 6: Announcements ── */}
+      {/* ── ZONE 4: Announcements ── */}
       <motion.section {...sectionAnim(0.24)}>
         <SectionLabel>Announcements</SectionLabel>
 
