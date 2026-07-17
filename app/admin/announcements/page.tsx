@@ -22,23 +22,16 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function TogglePill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "8px 16px", borderRadius: 10,
-        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-strong)"}`,
-        backgroundColor: selected ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
-        color: selected ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
-        fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer",
-        transitionProperty: "background-color, border-color, color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+const labelStyle: React.CSSProperties = {
+  fontFamily: font.mono,
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  color: "#B5B5B5",
+  display: "block",
+  marginBottom: 8,
+};
 
 interface AnnouncementItem {
   id: string; title: string; body: string; scope: "global" | "cohort"; cohortId: string | null; createdAt: string; createdBy: string; status: "published";
@@ -47,7 +40,7 @@ interface AnnouncementItem {
 export default function AnnouncementsPage() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [scope, setScope] = useState<"global" | "cohort">("cohort");
+  const [scope, setScope] = useState<"global" | "cohort">("global");
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(mockAnnouncements as AnnouncementItem[]);
   const [showSuccess, setShowSuccess] = useState(false);
   const canPublish = title.trim() !== "" && message.trim() !== "";
@@ -57,10 +50,10 @@ export default function AnnouncementsPage() {
     const newAnn: AnnouncementItem = { id: `ann-${Date.now()}`, title: title.trim(), body: message.trim(), scope, cohortId: scope === "cohort" ? "cohort-01" : null, createdAt: new Date().toISOString(), createdBy: "Adeyemi Matthew", status: "published" };
     setAnnouncements((prev) => [newAnn, ...prev]);
     setShowSuccess(true);
-    setTimeout(() => { setShowSuccess(false); setTitle(""); setMessage(""); setScope("cohort"); }, 2000);
+    setTimeout(() => { setShowSuccess(false); setTitle(""); setMessage(""); setScope("global"); }, 2000);
   }
 
-  const inputStyle: React.CSSProperties = { width: "100%", height: 40, padding: "0 14px", borderRadius: 10, backgroundColor: "var(--color-bg-surface-2)", border: "1px solid var(--color-border-strong)", color: "var(--color-text-primary)", fontFamily: font.body, fontSize: "14.5px", lineHeight: "22px", fontWeight: 400, outline: "none", boxSizing: "border-box" as const };
+  const inputStyle: React.CSSProperties = { width: "100%", height: 40, padding: "0 14px", borderRadius: 10, backgroundColor: "#181818", border: "1px solid #333333", color: "#FFFFFF", fontFamily: font.body, fontSize: 14, fontWeight: 400, outline: "none", boxSizing: "border-box" as const };
 
   return (
     <div>
@@ -76,25 +69,49 @@ export default function AnnouncementsPage() {
         ) : (
           <>
             <div style={{ marginTop: 20 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Title</label>
+              <label style={labelStyle}>Title</label>
               <input type="text" placeholder="Announcement title..." value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "#333333"; e.currentTarget.style.boxShadow = "none"; }}
               />
             </div>
             <div style={{ marginTop: 20 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Message</label>
+              <label style={labelStyle}>Message</label>
               <textarea rows={5} placeholder="Write your announcement..." value={message} onChange={(e) => setMessage(e.target.value)}
                 style={{ ...inputStyle, height: "auto", padding: "12px 14px", minHeight: 120, resize: "vertical" }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "#333333"; e.currentTarget.style.boxShadow = "none"; }}
               />
             </div>
             <div style={{ marginTop: 20 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Send to</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <TogglePill label="All cohorts" selected={scope === "global"} onClick={() => setScope("global")} />
-                <TogglePill label="Cohort 01 only" selected={scope === "cohort"} onClick={() => setScope("cohort")} />
+              <label style={labelStyle}>Send to</label>
+              <div style={{ display: "flex", border: "1px solid #333333", borderRadius: 8, overflow: "hidden", width: "fit-content" }}>
+                <button
+                  onClick={() => setScope("global")}
+                  style={{
+                    height: 36, padding: "0 20px", border: "none", borderRight: "1px solid #333333", borderRadius: 0,
+                    fontFamily: font.body, fontSize: 14, cursor: "pointer",
+                    backgroundColor: scope === "global" ? "rgba(99,102,241,0.12)" : "transparent",
+                    color: scope === "global" ? "#A5B4FC" : "#737373",
+                    fontWeight: scope === "global" ? 500 : 400,
+                    transition: "background-color 120ms ease",
+                  }}
+                >
+                  All cohorts
+                </button>
+                <button
+                  onClick={() => setScope("cohort")}
+                  style={{
+                    height: 36, padding: "0 20px", border: "none", borderRadius: 0,
+                    fontFamily: font.body, fontSize: 14, cursor: "pointer",
+                    backgroundColor: scope === "cohort" ? "rgba(99,102,241,0.12)" : "transparent",
+                    color: scope === "cohort" ? "#A5B4FC" : "#737373",
+                    fontWeight: scope === "cohort" ? 500 : 400,
+                    transition: "background-color 120ms ease",
+                  }}
+                >
+                  Cohort 01 only
+                </button>
               </div>
             </div>
             <div style={{ marginTop: 20 }}>
@@ -104,10 +121,10 @@ export default function AnnouncementsPage() {
         )}
       </div>
 
-      <SectionLabel>PUBLISHED</SectionLabel>
-      <div style={{ marginTop: 16, border: "1px solid var(--color-border-subtle)", borderRadius: 14, overflow: "hidden" }}>
+      <div style={{ fontFamily: font.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "#737373", marginBottom: 16 }}>PUBLISHED</div>
+      <div style={{ border: "1px solid #242424", borderRadius: 12, overflow: "hidden" }}>
         {announcements.map((ann, i) => (
-          <div key={ann.id} style={{ padding: "16px 20px", borderBottom: i < announcements.length - 1 ? "1px solid var(--color-border-subtle)" : "none", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+          <div key={ann.id} style={{ padding: "16px 20px", borderBottom: i < announcements.length - 1 ? "1px solid #242424" : "none", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>{ann.title}</p>
               <p style={{ fontFamily: font.body, fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ann.body}</p>
