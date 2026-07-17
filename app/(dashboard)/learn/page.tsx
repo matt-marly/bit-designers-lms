@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Lock } from "lucide-react";
-import { PageHeader } from "@/components/ui/custom/page-header";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
 import { mockUnits, getTotalProgress } from "@/lib/mock-learn-data";
@@ -69,43 +68,92 @@ export default function LearnPage() {
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", display: "flex", flexDirection: "column", gap: 48 }}>
       {/* Page Header + Progress */}
-      <div>
-        <PageHeader title="Learn" context="Design Lab · Bitcoin Foundations" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {/* Row 1: breadcrumb */}
+        <span
+          style={{
+            fontFamily: font.mono,
+            fontSize: 11,
+            lineHeight: "14px",
+            fontWeight: 600,
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+            color: "#737373",
+            marginBottom: 8,
+          }}
+        >
+          Design Lab · Bitcoin Foundations
+        </span>
 
-        <div style={{ marginTop: 24 }}>
-          <p
+        {/* Row 2: heading */}
+        <h1
+          style={{
+            fontFamily: font.display,
+            fontSize: 28,
+            lineHeight: "34px",
+            fontWeight: 700,
+            color: "#FFFFFF",
+            margin: 0,
+          }}
+        >
+          Learn
+        </h1>
+
+        {/* Row 3: progress zone */}
+        <div
+          style={{
+            marginTop: 24,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span
             style={{
               fontFamily: font.mono,
-              fontSize: 13,
-              lineHeight: "18px",
+              fontSize: 12,
+              lineHeight: "16px",
               fontWeight: 500,
-              color: "var(--color-text-tertiary)",
               textTransform: "uppercase",
-              margin: 0,
+              color: "#737373",
             }}
           >
             {complete} of {total} modules complete
-          </p>
-          <div
+          </span>
+          <span
             style={{
-              marginTop: 8,
-              height: 3,
-              width: "100%",
-              borderRadius: "var(--radius-full)",
-              backgroundColor: "var(--color-bg-surface-3)",
-              overflow: "hidden",
+              fontFamily: font.mono,
+              fontSize: 12,
+              lineHeight: "16px",
+              fontWeight: 500,
+              color: "#737373",
             }}
           >
-            <div
-              style={{
-                width: `${progress}%`,
-                transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
-                height: 3,
-                backgroundColor: "var(--color-indigo)",
-                borderRadius: "var(--radius-full)",
-              }}
-            />
-          </div>
+            {progress}%
+          </span>
+        </div>
+
+        {/* Row 4: progress bar */}
+        <div
+          style={{
+            marginTop: 8,
+            height: 4,
+            width: "100%",
+            borderRadius: 999,
+            backgroundColor: "#1C1C1C",
+            overflow: "hidden",
+            marginBottom: 40,
+          }}
+        >
+          <div
+            style={{
+              width: `${progress}%`,
+              transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
+              height: 4,
+              backgroundColor: "#6366F1",
+              borderRadius: 999,
+            }}
+          />
         </div>
       </div>
 
@@ -122,14 +170,14 @@ export default function LearnPage() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "16px 0",
+                padding: "18px 0",
                 cursor: "pointer",
                 borderBottom: "1px solid #242424",
                 userSelect: "none",
               }}
             >
               {/* Left side */}
-              <div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
                 <span
                   style={{
                     fontFamily: font.mono,
@@ -139,7 +187,7 @@ export default function LearnPage() {
                     letterSpacing: "0.10em",
                     textTransform: "uppercase",
                     color: "#737373",
-                    display: "block",
+                    marginBottom: 4,
                   }}
                 >
                   Unit {unit.number}
@@ -147,12 +195,11 @@ export default function LearnPage() {
                 <h2
                   style={{
                     fontFamily: font.display,
-                    fontSize: 20,
-                    lineHeight: "26px",
+                    fontSize: 18,
+                    lineHeight: "24px",
                     fontWeight: 600,
                     color: "#FFFFFF",
                     margin: 0,
-                    marginTop: 4,
                   }}
                 >
                   {unit.title}
@@ -160,19 +207,19 @@ export default function LearnPage() {
               </div>
 
               {/* Right side */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
                 <span
                   style={{
                     fontFamily: font.mono,
-                    fontSize: 12,
-                    lineHeight: "16px",
+                    fontSize: 11,
+                    lineHeight: "14px",
                     fontWeight: 500,
                     textTransform: "uppercase",
                     color: "#737373",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {unitComplete} of {unit.modules.length} complete
+                  {unitComplete} of {unit.modules.length}
                 </span>
                 <div
                   style={{
@@ -193,12 +240,25 @@ export default function LearnPage() {
                     }}
                   />
                 </div>
+                <span
+                  style={{
+                    fontFamily: font.mono,
+                    fontSize: 11,
+                    lineHeight: "14px",
+                    fontWeight: 500,
+                    textTransform: "uppercase",
+                    color: "#737373",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Complete
+                </span>
                 <ChevronDown
                   style={{
                     width: 16,
                     height: 16,
                     color: "#737373",
-                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    transform: isOpen ? "rotate(-180deg)" : "rotate(0deg)",
                     transition: "transform 200ms ease",
                     flexShrink: 0,
                   }}
@@ -297,53 +357,23 @@ export default function LearnPage() {
                             >
                               {mod.title}
                             </p>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                marginTop: 6,
-                              }}
-                            >
+                            {showGating && (
                               <span
                                 style={{
+                                  display: "block",
+                                  marginTop: 4,
                                   fontFamily: font.mono,
-                                  fontSize: 11,
-                                  lineHeight: "14px",
-                                  fontWeight: 600,
-                                  letterSpacing: "0.10em",
+                                  fontSize: 10,
+                                  lineHeight: "12px",
+                                  fontWeight: 500,
+                                  letterSpacing: "0.06em",
                                   textTransform: "uppercase",
-                                  color: "var(--color-text-tertiary)",
+                                  color: "#737373",
                                 }}
                               >
-                                Unit {unit.number} · {unit.title}
+                                Complete previous module first
                               </span>
-                              {showGating && (
-                                <>
-                                  <span
-                                    style={{
-                                      width: 1,
-                                      height: 10,
-                                      backgroundColor: "var(--color-border-subtle)",
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                  <span
-                                    style={{
-                                      fontFamily: font.mono,
-                                      fontSize: 10,
-                                      lineHeight: "12px",
-                                      fontWeight: 500,
-                                      letterSpacing: "0.06em",
-                                      textTransform: "uppercase",
-                                      color: "var(--color-text-tertiary)",
-                                    }}
-                                  >
-                                    Complete previous module first
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                            )}
                           </div>
 
                           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
@@ -366,6 +396,24 @@ export default function LearnPage() {
           </section>
         );
       })}
+
+      {/* Empty state hint when all units collapsed */}
+      {!Object.values(openUnits).some(Boolean) && (
+        <p
+          style={{
+            fontFamily: font.body,
+            fontSize: 13,
+            lineHeight: "19px",
+            color: "#4A4A4A",
+            textAlign: "center",
+            marginTop: 32,
+            margin: 0,
+            marginBlockStart: 32,
+          }}
+        >
+          Click any unit to expand its modules
+        </p>
+      )}
     </div>
   );
 }
