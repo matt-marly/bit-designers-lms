@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Users, BarChart3 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
-import { StatusPill } from "@/components/ui/custom/status-pill";
 import { PrimaryButton, OutlineButton } from "@/components/ui/custom/buttons";
 import { mockCohorts } from "@/lib/mock-admin-data";
 
@@ -127,7 +126,34 @@ export default function CohortsPage() {
                 Bitcoin for Designers — {cohort.track}
               </p>
             </div>
-            <StatusPill label="ACTIVE" variant="indigo" />
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "3px 8px",
+                borderRadius: 999,
+                backgroundColor: "rgba(34,197,94,0.10)",
+                border: "1px solid rgba(34,197,94,0.30)",
+                fontFamily: font.mono,
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.10em",
+                textTransform: "uppercase" as const,
+                color: "#4ADE80",
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  backgroundColor: "#22C55E",
+                  marginRight: 6,
+                  flexShrink: 0,
+                }}
+              />
+              ACTIVE
+            </span>
           </div>
 
           {/* Meta row */}
