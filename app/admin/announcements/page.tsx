@@ -28,7 +28,7 @@ function TogglePill({ label, selected, onClick }: { label: string; selected: boo
       onClick={onClick}
       style={{
         padding: "8px 16px", borderRadius: 10,
-        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-subtle)"}`,
+        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-strong)"}`,
         backgroundColor: selected ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
         color: selected ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
         fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer",
@@ -112,7 +112,13 @@ export default function AnnouncementsPage() {
               <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>{ann.title}</p>
               <p style={{ fontFamily: font.body, fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ann.body}</p>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)", backgroundColor: "var(--color-bg-surface-3)", border: "1px solid var(--color-border-subtle)", borderRadius: 999, padding: "2px 6px" }}>
+                <span style={{
+                  fontFamily: font.mono, fontSize: 10, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", borderRadius: 999, padding: "2px 6px",
+                  ...(ann.scope === "global"
+                    ? { color: "var(--color-indigo-text)", backgroundColor: "var(--color-indigo-subtle)", border: "1px solid var(--color-indigo-border)" }
+                    : { color: "var(--color-text-tertiary)", backgroundColor: "var(--color-bg-surface-3)", border: "1px solid var(--color-border-subtle)" }
+                  ),
+                }}>
                   {ann.scope === "global" ? "GLOBAL" : "COHORT 01"}
                 </span>
                 <span style={{ fontFamily: font.mono, fontSize: 11, fontWeight: 500, letterSpacing: "0.06em", color: "var(--color-text-tertiary)" }}>· {formatDate(ann.createdAt)} · by {ann.createdBy}</span>

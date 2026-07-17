@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { Link2, Inbox, Megaphone } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
-import { OutlineButton } from "@/components/ui/custom/buttons";
+import { PrimaryButton, OutlineButton } from "@/components/ui/custom/buttons";
 import { mockAdminStats, mockReviewQueue } from "@/lib/mock-admin-data";
 
 const font = {
@@ -107,52 +108,59 @@ export default function AdminOverviewPage() {
 
   return (
     <div>
-      {/* Context line */}
-      <span
-        style={{
-          fontFamily: font.mono,
-          fontSize: 11,
-          lineHeight: "14px",
-          fontWeight: 600,
-          letterSpacing: "0.10em",
-          textTransform: "uppercase",
-          color: "var(--color-text-tertiary)",
-          display: "block",
-        }}
-      >
-        ADMIN · BITDESIGNERS AFRICA
-      </span>
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          {/* Context line */}
+          <span
+            style={{
+              fontFamily: font.mono,
+              fontSize: 11,
+              lineHeight: "14px",
+              fontWeight: 600,
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
+              color: "var(--color-text-tertiary)",
+              display: "block",
+            }}
+          >
+            ADMIN · BITDESIGNERS AFRICA
+          </span>
 
-      {/* Title */}
-      <h1
-        style={{
-          fontFamily: font.display,
-          fontSize: 36,
-          lineHeight: "42px",
-          fontWeight: 600,
-          letterSpacing: "-0.02em",
-          color: "var(--color-text-primary)",
-          margin: 0,
-          marginTop: 10,
-        }}
-      >
-        Dashboard
-      </h1>
+          {/* Title */}
+          <h1
+            style={{
+              fontFamily: font.display,
+              fontSize: 36,
+              lineHeight: "42px",
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              color: "var(--color-text-primary)",
+              margin: 0,
+              marginTop: 10,
+            }}
+          >
+            Dashboard
+          </h1>
 
-      {/* Subtitle */}
-      <p
-        style={{
-          fontFamily: font.body,
-          fontSize: 14,
-          lineHeight: "22px",
-          fontWeight: 400,
-          color: "var(--color-text-secondary)",
-          margin: 0,
-          marginTop: 6,
-        }}
-      >
-        Cohort 01 · Active
-      </p>
+          {/* Subtitle */}
+          <p
+            style={{
+              fontFamily: font.body,
+              fontSize: 14,
+              lineHeight: "22px",
+              fontWeight: 400,
+              color: "var(--color-text-secondary)",
+              margin: 0,
+              marginTop: 6,
+            }}
+          >
+            Cohort 01 · Active
+          </p>
+        </div>
+
+        <PrimaryButton onClick={() => router.push("/admin/invites")}>Invite Learner</PrimaryButton>
+      </div>
 
       {/* Stats grid */}
       <div
@@ -219,10 +227,20 @@ export default function AdminOverviewPage() {
       <div style={{ marginTop: 48 }}>
         <SectionLabel>QUICK ACTIONS</SectionLabel>
         <div
-          style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 16 }}
+          style={{
+            marginTop: 16,
+            border: "1px solid var(--color-border-subtle)",
+            borderRadius: 14,
+            overflow: "hidden",
+          }}
         >
-          {quickActions.map((action) => {
+          {quickActions.map((action, i) => {
             const Icon = action.icon;
+            const iconBg = action.title === "Generate Invite Link"
+              ? "var(--color-indigo-subtle)"
+              : action.urgent
+                ? "rgba(245,158,11,0.10)"
+                : "var(--color-bg-surface-2)";
             return (
               <div
                 key={action.title}
@@ -231,42 +249,50 @@ export default function AdminOverviewPage() {
                 onClick={() => router.push(action.href)}
                 onKeyDown={(e) => { if (e.key === "Enter") router.push(action.href); }}
                 style={{
-                  ...cardStyle,
                   padding: "16px 20px",
+                  borderBottom: i < quickActions.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
                   cursor: "pointer",
-                  flex: "1 1 200px",
-                  transitionProperty: "border-color, background-color",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  transitionProperty: "background-color",
                   transitionDuration: "var(--duration-fast)",
                   transitionTimingFunction: "var(--ease-out-quart)",
-                  ...(action.urgent
-                    ? {
-                        borderColor: "rgba(245,158,11,0.30)",
-                        backgroundColor: "rgba(245,158,11,0.10)",
-                      }
-                    : {}),
                 }}
                 onMouseEnter={(e) => {
-                  if (!action.urgent) {
-                    e.currentTarget.style.borderColor = "var(--color-border-strong)";
-                    e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
-                  }
+                  e.currentTarget.style.backgroundColor = "#1C1C1C";
+                  const arrow = e.currentTarget.querySelector("[data-arrow]") as HTMLElement | null;
+                  if (arrow) arrow.style.color = "var(--color-text-primary)";
                 }}
                 onMouseLeave={(e) => {
-                  if (!action.urgent) {
-                    e.currentTarget.style.borderColor = "var(--color-border-subtle)";
-                    e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
-                  }
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  const arrow = e.currentTarget.querySelector("[data-arrow]") as HTMLElement | null;
+                  if (arrow) arrow.style.color = "var(--color-text-tertiary)";
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Icon style={{ width: 16, height: 16, color: action.iconColor, flexShrink: 0 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: iconBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon style={{ width: 18, height: 18, color: action.iconColor }} />
+                  </div>
                   <div>
                     <p
                       style={{
-                        fontFamily: font.display,
+                        fontFamily: font.body,
                         fontSize: 14,
                         lineHeight: "20px",
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: "var(--color-text-primary)",
                         margin: 0,
                       }}
@@ -276,8 +302,8 @@ export default function AdminOverviewPage() {
                     <p
                       style={{
                         fontFamily: font.body,
-                        fontSize: 12,
-                        lineHeight: "16px",
+                        fontSize: 13,
+                        lineHeight: "18px",
                         fontWeight: 400,
                         color: action.descColor,
                         margin: 0,
@@ -288,6 +314,17 @@ export default function AdminOverviewPage() {
                     </p>
                   </div>
                 </div>
+                <ArrowRight
+                  data-arrow=""
+                  style={{
+                    width: 16,
+                    height: 16,
+                    color: "var(--color-text-tertiary)",
+                    flexShrink: 0,
+                    transitionProperty: "color",
+                    transitionDuration: "var(--duration-fast)",
+                  }}
+                />
               </div>
             );
           })}

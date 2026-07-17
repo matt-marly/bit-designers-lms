@@ -25,7 +25,7 @@ function TogglePill({ label, selected, onClick }: { label: string; selected: boo
       onClick={onClick}
       style={{
         padding: "8px 16px", borderRadius: 10,
-        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-subtle)"}`,
+        border: `1px solid ${selected ? "var(--color-indigo-border)" : "var(--color-border-strong)"}`,
         backgroundColor: selected ? "var(--color-indigo-subtle)" : "var(--color-bg-surface-2)",
         color: selected ? "var(--color-indigo-text)" : "var(--color-text-tertiary)",
         fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer",
@@ -176,6 +176,22 @@ export default function SessionsPage() {
 
             <div style={{ marginTop: 20 }}>
               <PrimaryButton fullWidth disabled={!canSchedule} onClick={handleSchedule}>Schedule Session</PrimaryButton>
+              {!canSchedule && (
+                <p
+                  style={{
+                    fontFamily: font.mono,
+                    fontSize: 11,
+                    lineHeight: "14px",
+                    fontWeight: 500,
+                    color: "var(--color-text-tertiary)",
+                    textAlign: "center",
+                    margin: 0,
+                    marginTop: 8,
+                  }}
+                >
+                  Fill in title, date, time, and meeting link
+                </p>
+              )}
             </div>
           </>
         )}

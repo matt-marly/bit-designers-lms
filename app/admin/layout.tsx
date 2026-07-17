@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExternalLink } from "lucide-react";
 
 const font = {
   body: "var(--font-body), 'Inter', system-ui, -apple-system, sans-serif",
@@ -199,43 +198,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               Admin
             </span>
           </div>
-
-          {/* Divider */}
-          <div
-            style={{
-              width: 1,
-              height: 16,
-              backgroundColor: "var(--color-border-subtle)",
-            }}
-            className="max-md:hidden"
-          />
-
-          {/* View as Learner */}
-          <a
-            href="/home"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontFamily: font.body,
-              fontSize: 12,
-              fontWeight: 400,
-              color: "var(--color-text-tertiary)",
-              textDecoration: "none",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              whiteSpace: "nowrap",
-              transitionProperty: "color",
-              transitionDuration: "var(--duration-fast)",
-              transitionTimingFunction: "var(--ease-out-quart)",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-tertiary)")}
-            className="max-md:hidden"
-          >
-            View as Learner
-            <ExternalLink style={{ width: 11, height: 11 }} />
-          </a>
         </div>
       </header>
 

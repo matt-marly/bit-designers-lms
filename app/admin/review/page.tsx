@@ -111,9 +111,14 @@ function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
 
       {/* Rubric (collapsible) */}
       <div style={{ marginTop: 16 }}>
-        <button onClick={() => setRubricOpen(!rubricOpen)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-          <ChevronDown style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", transform: rubricOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)" }} />
-          <span style={{ fontFamily: font.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)" }}>VIEW RUBRIC</span>
+        <button
+          onClick={() => setRubricOpen(!rubricOpen)}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, transitionProperty: "color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-text-secondary)"; }}
+        >
+          <ChevronDown style={{ width: 14, height: 14, color: "inherit", transform: rubricOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)" }} />
+          <span style={{ fontFamily: font.body, fontSize: 13, fontWeight: 500, color: "inherit" }}>View Rubric</span>
         </button>
         <div style={{ maxHeight: rubricOpen ? 200 : 0, overflow: "hidden", transition: "max-height 200ms cubic-bezier(0.25, 1, 0.5, 1)" }}>
           <ul style={{ margin: 0, paddingLeft: 20, paddingTop: 10, listStyle: "disc" }}>
@@ -178,6 +183,22 @@ function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
 
             <div style={{ marginTop: 16 }}>
               <PrimaryButton fullWidth disabled={!review.outcome || !review.comment.trim()} onClick={handleSubmitReview}>Submit Review</PrimaryButton>
+              {(!review.outcome || !review.comment.trim()) && (
+                <p
+                  style={{
+                    fontFamily: font.mono,
+                    fontSize: 11,
+                    lineHeight: "14px",
+                    fontWeight: 500,
+                    color: "var(--color-text-tertiary)",
+                    textAlign: "center",
+                    margin: 0,
+                    marginTop: 8,
+                  }}
+                >
+                  Select an outcome and write feedback to submit
+                </p>
+              )}
             </div>
           </>
         ) : (

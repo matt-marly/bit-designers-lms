@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Calendar, Users, BarChart3 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
-import { OutlineButton } from "@/components/ui/custom/buttons";
+import { PrimaryButton, OutlineButton } from "@/components/ui/custom/buttons";
 import { mockCohorts } from "@/lib/mock-admin-data";
 
 const font = {
@@ -55,6 +55,7 @@ export default function CohortsPage() {
         </h1>
         <div
           style={{ position: "relative" }}
+          title="Coming in V2"
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
@@ -171,7 +172,7 @@ export default function CohortsPage() {
           <div style={{ marginTop: 20, borderTop: "1px solid var(--color-border-subtle)", paddingTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <OutlineButton size="small">View Learners</OutlineButton>
             <OutlineButton size="small">View Missions</OutlineButton>
-            <OutlineButton size="small">Manage</OutlineButton>
+            <PrimaryButton size="small">Manage</PrimaryButton>
           </div>
         </div>
       ))}
