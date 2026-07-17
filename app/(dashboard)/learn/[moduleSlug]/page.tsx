@@ -695,6 +695,10 @@ export default function ModulePage() {
         display: "flex",
       }}
     >
+      <style>{`
+        .video-cap { max-height: 360px; }
+        @media (max-width: 768px) { .video-cap { max-height: 220px; } }
+      `}</style>
       {/* ================================================================ */}
       {/* LEFT COLUMN                                                      */}
       {/* ================================================================ */}
@@ -749,6 +753,7 @@ export default function ModulePage() {
           >
             <div style={{ padding: "0 32px" }}>
               <div
+                className="video-cap"
                 style={{
                   position: "relative",
                   width: "100%",
@@ -881,7 +886,7 @@ export default function ModulePage() {
             position: "relative",
           }}
         >
-          <div style={{ borderBottom: "1px solid var(--color-border-subtle)", display: "flex" }}>
+          <div style={{ display: "flex", borderBottom: "1px solid #242424", gap: 0, marginBottom: 24 }}>
             {tabs.map((tab) => {
               const isActive = activeTab === tab;
               const count = tabCounts[tab];
@@ -891,25 +896,24 @@ export default function ModulePage() {
                   onClick={() => setActiveTab(tab)}
                   style={{
                     height: 40,
-                    padding: "0 0",
-                    marginRight: 24,
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: isActive ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
+                    padding: "0 16px",
                     backgroundColor: "transparent",
                     border: "none",
-                    borderBottom: isActive ? "2px solid var(--color-indigo)" : "2px solid transparent",
+                    borderBottom: isActive ? "2px solid #6366F1" : "2px solid transparent",
+                    marginBottom: -1,
+                    fontFamily: font.body,
+                    fontSize: 14,
+                    fontWeight: isActive ? 500 : 400,
+                    color: isActive ? "#FFFFFF" : "#737373",
                     cursor: "pointer",
                     transitionProperty: "color, border-color",
-                    transitionDuration: "var(--duration-fast)",
-                    transitionTimingFunction: "var(--ease-out-quart)",
-                    marginBottom: -1,
+                    transitionDuration: "120ms",
+                    transitionTimingFunction: "ease",
                     display: "inline-flex",
                     alignItems: "center",
                   }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "var(--color-text-secondary)"; }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "var(--color-text-tertiary)"; }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "#B5B5B5"; }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "#737373"; }}
                 >
                   {tab}
                   {count != null && (
@@ -921,16 +925,11 @@ export default function ModulePage() {
                         minWidth: 18,
                         height: 18,
                         borderRadius: 999,
-                        backgroundColor: "var(--color-bg-surface-3)",
-                        border: "1px solid var(--color-border-subtle)",
+                        backgroundColor: "#202020",
                         fontFamily: font.mono,
                         fontSize: 10,
-                        lineHeight: "12px",
-                        fontWeight: 500,
-                        letterSpacing: "0.06em",
-                        color: "var(--color-text-tertiary)",
+                        color: "#737373",
                         marginLeft: 6,
-                        padding: "0 4px",
                       }}
                     >
                       {count}
