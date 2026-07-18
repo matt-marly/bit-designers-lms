@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BitDesigners Africa — Learning Platform
 
-## Getting Started
+A web-based learning platform for African designers
+entering the Bitcoin ecosystem. Built to produce
+contributors, not graduates.
 
-First, run the development server:
+## What this is
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+BitDesigners Africa is building the pipeline for
+African designers to become meaningful contributors
+to Bitcoin open source. This platform is the
+operating system for that mission.
+
+## Stack
+
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS + shadcn/ui
+- **Database:** Supabase (Postgres + Auth)
+- **Storage:** Cloudflare R2
+- **Email:** Resend
+- **Video:** YouTube (unlisted embeds)
+- **Hosting:** Vercel
+
+## Structure
+
+```
+app/
+  (dashboard)/     # Learner experience
+    home/
+    learn/
+    missions/
+    live/
+    materials/
+    reference/
+    community/
+  admin/           # Admin/mentor experience
+    overview/
+    cohorts/
+    members/
+    invites/
+    review/
+    announcements/
+    sessions/
+docs/              # Product documentation
+  bitdesigners-discovery.md
+  prd.md
+  architecture.md
+  design-system.md
+components/
+  ui/custom/       # Design system components
+lib/               # Mock data + utilities
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Docs
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+All product decisions are documented in `docs/`.
+Read these before contributing:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `docs/prd.md` — Product requirements
+- `docs/architecture.md` — System architecture
+- `docs/design-system.md` — Design system spec
+- `docs/BitDesigners_Africa_Brand_Direction.md` — Brand
 
-## Learn More
+## Development
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000)
+for the learner dashboard.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open [http://localhost:3000/admin](http://localhost:3000/admin)
+for the admin dashboard.
 
-## Deploy on Vercel
+## Status
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+V1 in active development. Not yet deployed.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+Built by [BitDesigners Africa](https://bitdesigners.africa)
