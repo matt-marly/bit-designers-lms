@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Megaphone } from "lucide-react";
+import { Megaphone, ChevronDown, CheckCircle2, Circle } from "lucide-react";
 import { mockUnits } from "@/lib/mock-learn-data";
 import { mockSessions } from "@/lib/mock-live-data";
 
@@ -103,6 +103,18 @@ function formatSessionDate(session: { date: string; time: string; timezone: stri
 export default function HomePage() {
   const router = useRouter();
   const [progress, setProgress] = useState(0);
+  const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    mockUnits.forEach((unit) => {
+      const hasInProgress = unit.modules.some((m) => m.status === "in-progress");
+      initial[unit.id] = hasInProgress;
+    });
+    return initial;
+  });
+
+  const toggleUnit = (unitId: string) => {
+    setExpandedUnits((prev) => ({ ...prev, [unitId]: !prev[unitId] }));
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setProgress(nextModule.progressPercent), 100);
@@ -130,8 +142,10 @@ export default function HomePage() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.85); }
         }
+        .module-progress-scroll::-webkit-scrollbar { width: 3px; }
+        .module-progress-scroll::-webkit-scrollbar-track { background: transparent; }
+        .module-progress-scroll::-webkit-scrollbar-thumb { background: #333333; border-radius: 999px; }
         @media (max-width: 768px) {
-          .home-banner-inner { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
           .home-banner-left { flex-wrap: wrap !important; }
           .home-stat-grid { grid-template-columns: 1fr 1fr !important; }
           .home-stat-grid > :last-child { grid-column: 1 / -1; }
@@ -145,114 +159,74 @@ export default function HomePage() {
           <div
             style={{
               width: "100%",
-              background:
-                bannerState === "live"
-                  ? "rgba(99,102,241,0.12)"
-                  : "rgba(99,102,241,0.08)",
-              borderBottom:
-                bannerState === "live"
-                  ? "1px solid rgba(99,102,241,0.25)"
-                  : "1px solid rgba(99,102,241,0.20)",
-              padding: "12px 0",
+              background: "rgba(99,102,241,0.08)",
+              border: "1px solid rgba(99,102,241,0.20)",
+              borderRadius: 12,
+              padding: "12px 20px",
+              marginBottom: 28,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
+            {/* LEFT */}
             <div
-              className="home-banner-inner"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
+              className="home-banner-left"
+              style={{ display: "flex", alignItems: "center", gap: 10 }}
             >
-              {/* LEFT */}
-              <div
-                className="home-banner-left"
-                style={{ display: "flex", alignItems: "center", gap: 12 }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor: "#6366F1",
-                    animation: "pulse 2s ease infinite",
-                    flexShrink: 0,
-                  }}
-                />
-                {bannerState === "live" ? (
-                  <>
-                    <span
-                      style={{
-                        fontFamily: font.mono,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        letterSpacing: "0.10em",
-                        textTransform: "uppercase" as const,
-                        color: "#A5B4FC",
-                        marginRight: 8,
-                      }}
-                    >
-                      LIVE NOW
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: font.body,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: "#FFFFFF",
-                      }}
-                    >
-                      {upcomingSession.title}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span
-                      style={{
-                        fontFamily: font.body,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: "#FFFFFF",
-                      }}
-                    >
-                      {upcomingSession.title}
-                    </span>
-                    <span style={{ color: "#737373" }}>·</span>
-                    <span
-                      style={{
-                        fontFamily: font.mono,
-                        fontSize: 12,
-                        color: "#737373",
-                      }}
-                    >
-                      {formatSessionDate(upcomingSession)}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* RIGHT */}
               <span
-                onClick={() => {
-                  if (bannerState === "live" && upcomingSession.joinUrl) {
-                    window.open(upcomingSession.joinUrl, "_blank", "noopener,noreferrer");
-                  } else {
-                    router.push("/live");
-                  }
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  backgroundColor: "#6366F1",
+                  animation: "pulse 2s ease infinite",
+                  flexShrink: 0,
                 }}
+              />
+              <span
                 style={{
                   fontFamily: font.body,
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 500,
-                  color: "#A5B4FC",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  whiteSpace: "nowrap",
+                  color: "#FFFFFF",
                 }}
               >
-                {bannerState === "live" ? "Join now →" : "View details →"}
+                {upcomingSession.title}
+              </span>
+              <span style={{ color: "#737373" }}>·</span>
+              <span
+                style={{
+                  fontFamily: font.mono,
+                  fontSize: 12,
+                  color: "#737373",
+                }}
+              >
+                {formatSessionDate(upcomingSession)}
               </span>
             </div>
+
+            {/* RIGHT */}
+            <span
+              onClick={() => {
+                if (bannerState === "live" && upcomingSession.joinUrl) {
+                  window.open(upcomingSession.joinUrl, "_blank", "noopener,noreferrer");
+                } else {
+                  router.push("/live");
+                }
+              }}
+              style={{
+                fontFamily: font.body,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "#A5B4FC",
+                cursor: "pointer",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {bannerState === "live" ? "Join now →" : "View details →"}
+            </span>
           </div>
         )}
         {/* ── ZONE 1: Page Header ── */}
@@ -670,9 +644,10 @@ export default function HomePage() {
                 border: "1px solid #242424",
                 borderRadius: 14,
                 padding: 24,
-                flex: 1,
                 display: "flex",
                 flexDirection: "column" as const,
+                height: "100%",
+                maxHeight: 420,
               }}
             >
               <span
@@ -684,97 +659,228 @@ export default function HomePage() {
                   letterSpacing: "0.10em",
                   textTransform: "uppercase",
                   color: "#737373",
-                  marginBottom: 20,
+                  marginBottom: 16,
                   display: "block",
                 }}
               >
                 MODULE PROGRESS
               </span>
 
-              {mockUnits.map((unit, i) => {
-                const complete = unit.modules.filter((m) => m.status === "passed").length;
-                const total = unit.modules.length;
-                const pct = total > 0 ? (complete / total) * 100 : 0;
-                const isLast = i === mockUnits.length - 1;
+              {/* Scrollable unit list */}
+              <div
+                className="module-progress-scroll"
+                style={{
+                  overflowY: "auto",
+                  flex: 1,
+                  paddingRight: 4,
+                }}
+              >
+                {mockUnits.map((unit) => {
+                  const complete = unit.modules.filter((m) => m.status === "passed").length;
+                  const total = unit.modules.length;
+                  const pct = total > 0 ? (complete / total) * 100 : 0;
+                  const isExpanded = !!expandedUnits[unit.id];
 
-                return (
-                  <div key={unit.id} style={{ marginBottom: isLast ? 0 : 24 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span
-                        style={{
-                          fontFamily: font.body,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: "#FFFFFF",
-                        }}
-                      >
-                        {unit.title}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: font.mono,
-                          fontSize: 12,
-                          color: "#737373",
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {complete} / {total}
-                      </span>
-                    </div>
-
+                  return (
                     <div
+                      key={unit.id}
                       style={{
-                        width: "100%",
-                        height: "3px",
-                        background: "#1C1C1C",
-                        borderRadius: "999px",
-                        marginTop: "8px",
+                        marginBottom: 8,
+                        border: "1px solid #242424",
+                        borderRadius: 10,
                         overflow: "hidden",
                       }}
                     >
+                      {/* Unit header */}
+                      <div
+                        onClick={() => toggleUnit(unit.id)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "12px 14px",
+                          cursor: "pointer",
+                          background: "#161616",
+                          transition: "background 120ms ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#1C1C1C")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "#161616")}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span
+                            style={{
+                              fontFamily: font.mono,
+                              fontSize: 10,
+                              fontWeight: 500,
+                              letterSpacing: "0.06em",
+                              textTransform: "uppercase",
+                              color: "#737373",
+                            }}
+                          >
+                            UNIT {unit.number}
+                          </span>
+                          <span
+                            style={{
+                              fontFamily: font.body,
+                              fontSize: 13,
+                              fontWeight: 500,
+                              color: "#FFFFFF",
+                            }}
+                          >
+                            {unit.title}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span
+                            style={{
+                              fontFamily: font.mono,
+                              fontSize: 11,
+                              color: "#737373",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {complete} / {total}
+                          </span>
+                          <div
+                            style={{
+                              width: 48,
+                              height: 3,
+                              background: "#242424",
+                              borderRadius: 999,
+                              overflow: "hidden",
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${pct}%`,
+                                background: "#6366F1",
+                                borderRadius: 999,
+                              }}
+                            />
+                          </div>
+                          <ChevronDown
+                            style={{
+                              width: 14,
+                              height: 14,
+                              color: "#737373",
+                              transform: isExpanded ? "rotate(-180deg)" : "rotate(0deg)",
+                              transition: "transform 150ms ease",
+                              flexShrink: 0,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Unit body — expandable */}
                       <div
                         style={{
-                          height: "100%",
-                          width: `${pct}%`,
-                          background: "#6366F1",
-                          borderRadius: "999px",
+                          maxHeight: isExpanded ? 400 : 0,
+                          overflow: "hidden",
+                          transition: "max-height 250ms ease-in-out",
                         }}
-                      />
+                      >
+                        <div style={{ padding: "8px 14px 12px" }}>
+                          {unit.modules.map((mod, mi) => (
+                            <div
+                              key={mod.slug}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "8px 0",
+                                borderBottom:
+                                  mi < unit.modules.length - 1
+                                    ? "1px solid #1C1C1C"
+                                    : "none",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {mod.status === "passed" ? (
+                                  <CheckCircle2
+                                    style={{ width: 14, height: 14, color: "#22C55E", flexShrink: 0 }}
+                                  />
+                                ) : mod.status === "in-progress" ? (
+                                  <div
+                                    style={{
+                                      width: 14,
+                                      height: 14,
+                                      borderRadius: "50%",
+                                      border: "2px solid #6366F1",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: "50%",
+                                        backgroundColor: "#6366F1",
+                                      }}
+                                    />
+                                  </div>
+                                ) : (
+                                  <Circle
+                                    style={{ width: 14, height: 14, color: "#333333", flexShrink: 0 }}
+                                  />
+                                )}
+                                <span
+                                  style={{
+                                    fontFamily: font.body,
+                                    fontSize: 13,
+                                    fontWeight: mod.status === "in-progress" ? 500 : 400,
+                                    color:
+                                      mod.status === "passed"
+                                        ? "#737373"
+                                        : mod.status === "in-progress"
+                                        ? "#FFFFFF"
+                                        : "#B5B5B5",
+                                    textDecoration:
+                                      mod.status === "passed" ? "line-through" : "none",
+                                  }}
+                                >
+                                  {mod.title}
+                                </span>
+                              </div>
+                              <span
+                                style={{
+                                  fontFamily: font.mono,
+                                  fontSize: 10,
+                                  color: "#4A4A4A",
+                                  fontVariantNumeric: "tabular-nums",
+                                }}
+                              >
+                                {mod.number}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <span
-                      style={{
-                        fontFamily: font.mono,
-                        fontSize: 10,
-                        color: "#4A4A4A",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginTop: 5,
-                        display: "block",
-                      }}
-                    >
-                      UNIT {unit.number}
-                    </span>
-                  </div>
-                );
-              })}
-
-              {/* Divider + link */}
-              <div style={{ marginTop: "auto", paddingTop: 20, borderTop: "1px solid #242424" }} />
-              <Link
-                href="/learn"
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 13,
-                  color: "#6366F1",
-                  textDecoration: "none",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#777AF5")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#6366F1")}
-              >
-                View all modules →
-              </Link>
+              {/* Footer */}
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #242424" }}>
+                <Link
+                  href="/learn"
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 13,
+                    color: "#6366F1",
+                    textDecoration: "none",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#777AF5")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#6366F1")}
+                >
+                  View all modules →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
