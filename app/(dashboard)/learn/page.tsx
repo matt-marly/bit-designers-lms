@@ -68,6 +68,18 @@ export default function LearnPage() {
   }
 
   return (
+    <>
+    <style>{`
+      @media (max-width: 768px) {
+        .learn-heading { font-size: 24px !important; line-height: 30px !important; }
+        .learn-unit-title { font-size: 16px !important; line-height: 22px !important; }
+        .learn-unit-bar { display: none !important; }
+        .learn-unit-bar-label { display: none !important; }
+        .learn-module-card { padding: 14px 16px !important; }
+        .learn-module-inner { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+        .learn-module-right { align-self: flex-start; }
+      }
+    `}</style>
     <div style={{ maxWidth: 880, margin: "0 auto", display: "flex", flexDirection: "column", gap: 48 }}>
       {/* Page Header + Progress */}
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -89,6 +101,7 @@ export default function LearnPage() {
 
         {/* Row 2: heading */}
         <h1
+          className="learn-heading"
           style={{
             fontFamily: font.display,
             fontSize: 28,
@@ -203,6 +216,7 @@ export default function LearnPage() {
                   Unit {unit.number}
                 </span>
                 <h2
+                  className="learn-unit-title"
                   style={{
                     fontFamily: font.display,
                     fontSize: 18,
@@ -232,6 +246,7 @@ export default function LearnPage() {
                   {unitComplete} of {unit.modules.length}
                 </span>
                 <div
+                  className="learn-unit-bar"
                   style={{
                     width: 80,
                     height: 3,
@@ -251,6 +266,7 @@ export default function LearnPage() {
                   />
                 </div>
                 <span
+                  className="learn-unit-bar-label"
                   style={{
                     fontFamily: font.mono,
                     fontSize: 11,
@@ -348,6 +364,7 @@ export default function LearnPage() {
                               router.push(`/learn/${mod.slug}`);
                             }
                           }}
+                          className="learn-module-card learn-module-inner"
                           style={{
                             backgroundColor: "var(--color-bg-surface)",
                             border: isActive ? "1px solid #333333" : "1px solid var(--color-border-subtle)",
@@ -405,7 +422,7 @@ export default function LearnPage() {
                             )}
                           </div>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                          <div className="learn-module-right" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
                             {getStatusPill(mod.status)}
                             <ChevronRight
                               style={{
@@ -472,5 +489,6 @@ export default function LearnPage() {
         </p>
       )}
     </div>
+    </>
   );
 }

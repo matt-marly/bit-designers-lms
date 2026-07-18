@@ -346,6 +346,7 @@ function MissionCell({ mission }: { mission: Mission }) {
       >
         {/* TOP ROW */}
         <div
+          className="missions-cell-top"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -500,6 +501,15 @@ export default function MissionsPage() {
   const filtered = filterMissions(sortedMissions, filter);
 
   return (
+    <>
+    <style>{`
+      @media (max-width: 768px) {
+        .missions-page-title { font-size: 32px !important; }
+        .missions-tab-bar { display: flex !important; }
+        .missions-tab-bar > button { flex: 1 !important; font-size: 13px !important; }
+        .missions-cell-top { flex-wrap: wrap !important; gap: 6px !important; }
+      }
+    `}</style>
     <div style={{ maxWidth: 960, margin: "0 auto" }}>
       {/* PAGE HEADER */}
       <header>
@@ -522,6 +532,7 @@ export default function MissionsPage() {
 
         {/* Title */}
         <h1
+          className="missions-page-title"
           style={{
             fontFamily: font.display,
             fontSize: 44,
@@ -554,6 +565,7 @@ export default function MissionsPage() {
 
         {/* Tab bar */}
         <div
+          className="missions-tab-bar"
           style={{
             display: "flex",
             alignItems: "center",
@@ -600,5 +612,6 @@ export default function MissionsPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

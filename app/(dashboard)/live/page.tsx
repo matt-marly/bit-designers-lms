@@ -130,6 +130,7 @@ function SessionTags({ tags, gap = 6 }: { tags: string[]; gap?: number }) {
 function CountdownBlock({ value, label }: { value: number; label: string }) {
   return (
     <div
+      className="live-countdown-block"
       style={{
         backgroundColor: "var(--color-bg-surface-2)",
         border: "1px solid var(--color-border-subtle)",
@@ -140,6 +141,7 @@ function CountdownBlock({ value, label }: { value: number; label: string }) {
       }}
     >
       <div
+        className="live-countdown-value"
         style={{
           fontFamily: font.display,
           fontSize: 20,
@@ -218,7 +220,7 @@ function CountdownTimer({ session }: { session: LiveSession }) {
       >
         STARTS IN
       </span>
-      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+      <div className="live-countdown-blocks" style={{ display: "flex", gap: 10, marginTop: 8 }}>
         <CountdownBlock value={cd.days} label="DAYS" />
         <CountdownBlock value={cd.hours} label="HRS" />
         <CountdownBlock value={cd.minutes} label="MIN" />
@@ -364,7 +366,7 @@ function UpcomingCard({
       </p>
 
       {/* Meta row */}
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 20, marginTop: 16 }}>
+      <div className="live-meta-row" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 20, marginTop: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Calendar style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
           <span
@@ -424,6 +426,7 @@ function UpcomingCard({
 
       {/* Action row */}
       <div
+        className="live-action-row"
         style={{
           marginTop: 20,
           borderTop: "1px solid var(--color-border-subtle)",
@@ -833,6 +836,17 @@ export default function LivePage() {
         button:hover .recording-play-icon {
           color: var(--color-text-primary) !important;
         }
+        @media (max-width: 768px) {
+          .live-page-title { font-size: 32px !important; }
+          .live-tab-bar { display: flex !important; }
+          .live-tab-bar > button { flex: 1 !important; font-size: 13px !important; }
+          .live-action-row { flex-direction: column !important; gap: 10px !important; }
+          .live-action-row > * { width: 100%; }
+          .live-countdown-blocks { gap: 6px !important; }
+          .live-countdown-block { min-width: 44px !important; padding: 6px 8px !important; }
+          .live-countdown-value { font-size: 16px !important; line-height: 22px !important; }
+          .live-meta-row { flex-direction: column !important; gap: 8px !important; }
+        }
       `}</style>
 
       <div
@@ -842,6 +856,7 @@ export default function LivePage() {
         {/* ── PAGE HEADER — 44px title like Missions ── */}
         <header>
           <h1
+            className="live-page-title"
             style={{
               fontFamily: font.display,
               fontSize: 44,
@@ -872,6 +887,7 @@ export default function LivePage() {
 
         {/* ── TAB BAR ── */}
         <div
+          className="live-tab-bar"
           style={{
             display: "flex",
             alignItems: "center",

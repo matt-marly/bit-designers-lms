@@ -188,10 +188,13 @@ export default function HomePage() {
         .module-progress-scroll::-webkit-scrollbar-track { background: transparent; }
         .module-progress-scroll::-webkit-scrollbar-thumb { background: #333333; border-radius: 999px; }
         @media (max-width: 768px) {
+          .home-banner { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
           .home-banner-left { flex-wrap: wrap !important; }
           .home-stat-grid { grid-template-columns: 1fr 1fr !important; }
           .home-stat-grid > :last-child { grid-column: 1 / -1; }
           .home-two-col { grid-template-columns: 1fr !important; }
+          .home-module-progress { max-height: none !important; }
+          .home-unit-body { max-height: none !important; }
         }
       `}</style>
 
@@ -199,6 +202,7 @@ export default function HomePage() {
         {/* ── ZONE 0: Live Session Banner ── */}
         {upcomingSession && (
           <div
+            className="home-banner"
             style={{
               width: "100%",
               background: "rgba(99,102,241,0.08)",
@@ -783,6 +787,7 @@ export default function HomePage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
             {/* Card C — MODULE PROGRESS */}
             <div
+              className="home-module-progress"
               style={{
                 backgroundColor: "#111111",
                 border: "1px solid #242424",
@@ -924,6 +929,7 @@ export default function HomePage() {
 
                       {/* Unit body — expandable */}
                       <div
+                        className="home-unit-body"
                         style={{
                           maxHeight: isExpanded ? 400 : 0,
                           overflow: "hidden",
