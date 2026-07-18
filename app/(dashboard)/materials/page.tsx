@@ -179,7 +179,9 @@ export default function MaterialsPage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    for (const g of mockMaterialGroups) initial[g.id] = true;
+    for (let i = 0; i < mockMaterialGroups.length; i++) {
+      initial[mockMaterialGroups[i].id] = i === 0;
+    }
     return initial;
   });
 
@@ -372,54 +374,64 @@ export default function MaterialsPage() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            maxWidth: 360,
-            margin: "0 auto",
-            padding: "48px 24px",
+            padding: "40px 0",
           }}
         >
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: "50%",
-              backgroundColor: "var(--color-bg-surface-2)",
-              border: "1px solid var(--color-border-subtle)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Search style={{ width: 40, height: 40, color: "var(--color-text-tertiary)" }} />
-          </div>
+          <Search style={{ width: 32, height: 32, color: "#737373" }} />
           <p
             style={{
               fontFamily: font.body,
               fontSize: 16,
-              lineHeight: "22px",
-              fontWeight: 600,
-              letterSpacing: "-0.005em",
-              color: "var(--color-text-primary)",
+              fontWeight: 500,
+              color: "#FFFFFF",
               margin: 0,
-              marginTop: 20,
+              marginTop: 12,
               textAlign: "center",
             }}
           >
-            No results found
+            No materials match your search
           </p>
           <p
             style={{
               fontFamily: font.body,
-              fontSize: 13,
-              lineHeight: "19px",
-              fontWeight: 400,
-              color: "var(--color-text-secondary)",
+              fontSize: 14,
+              color: "#737373",
               margin: 0,
-              marginTop: 8,
+              marginTop: 6,
               textAlign: "center",
             }}
           >
-            Try a different search term or filter.
+            Try a different keyword.
           </p>
+          <button
+            onClick={() => setSearchQuery("")}
+            style={{
+              marginTop: 16,
+              padding: "0 16px",
+              height: 40,
+              fontFamily: font.body,
+              fontSize: "14.5px",
+              fontWeight: 500,
+              color: "var(--color-text-secondary)",
+              backgroundColor: "transparent",
+              border: "none",
+              borderRadius: 10,
+              cursor: "pointer",
+              transitionProperty: "background-color, color",
+              transitionDuration: "var(--duration-fast)",
+              transitionTimingFunction: "var(--ease-out-quart)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+              e.currentTarget.style.color = "var(--color-text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--color-text-secondary)";
+            }}
+          >
+            Clear search
+          </button>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>

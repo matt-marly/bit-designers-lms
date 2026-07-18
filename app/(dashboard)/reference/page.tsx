@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { PlayCircle, ExternalLink, ChevronDown, Search } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { PlayCircle, ExternalLink, ChevronDown, Search, X, AlertCircle } from "lucide-react";
 import { mockReferenceGroups } from "@/lib/mock-reference-data";
 import type { ReferenceItem } from "@/lib/mock-reference-data";
 
@@ -59,14 +59,201 @@ function FilterTab({
   );
 }
 
-function ReferenceCard({ item }: { item: ReferenceItem }) {
+function getYouTubeEmbedUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    let videoId: string | null = null;
+    if (parsed.hostname.includes("youtube.com")) {
+      videoId = parsed.searchParams.get("v");
+    } else if (parsed.hostname === "youtu.be") {
+      videoId = parsed.pathname.slice(1);
+    }
+    if (!videoId) return null;
+    return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
+  } catch {
+    return null;
+  }
+}
+
+interface ToastData {
+  id: number;
+  title: string;
+  type: "danger";
+}
+
+let toastIdCounter = 0;
+
+function Toast({ toast, onDismiss }: { toast: ToastData; onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
   return (
     <div
-      onClick={() => window.open(item.url, "_blank")}
-      role="link"
+      role="alert"
+      style={{
+        backgroundColor: "var(--color-bg-surface-2)",
+        border: "1px solid var(--color-border-strong)",
+        borderRadius: 10,
+        boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
+        padding: "14px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: 360,
+        animation: "toast-enter 240ms cubic-bezier(0.25, 1, 0.5, 1)",
+      }}
+    >
+      <AlertCircle
+        style={{ width: 18, height: 18, color: "#EF4444", flexShrink: 0 }}
+      />
+      <span
+        style={{
+          fontFamily: font.body,
+          fontSize: "14.5px",
+          fontWeight: 600,
+          color: "var(--color-text-primary)",
+          flex: 1,
+        }}
+      >
+        {toast.title}
+      </span>
+      <button
+        onClick={onDismiss}
+        style={{
+          width: 28,
+          height: 28,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "transparent",
+          border: "none",
+          borderRadius: 10,
+          cursor: "pointer",
+          color: "var(--color-text-secondary)",
+          flexShrink: 0,
+          transitionProperty: "background-color, color",
+          transitionDuration: "var(--duration-fast)",
+          transitionTimingFunction: "var(--ease-out-quart)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+          e.currentTarget.style.color = "var(--color-text-primary)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.color = "var(--color-text-secondary)";
+        }}
+      >
+        <X style={{ width: 14, height: 14 }} />
+      </button>
+    </div>
+  );
+}
+
+function VideoModal({
+  embedUrl,
+  onClose,
+}: {
+  embedUrl: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: 24,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 720,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: -48,
+            right: 0,
+            width: 40,
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "transparent",
+            border: "none",
+            borderRadius: 10,
+            cursor: "pointer",
+            color: "var(--color-text-secondary)",
+            transitionProperty: "background-color, color",
+            transitionDuration: "var(--duration-fast)",
+            transitionTimingFunction: "var(--ease-out-quart)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+            e.currentTarget.style.color = "var(--color-text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.color = "var(--color-text-secondary)";
+          }}
+        >
+          <X style={{ width: 18, height: 18 }} />
+        </button>
+        <div style={{ position: "relative", width: "100%", aspectRatio: "16/9" }}>
+          <iframe
+            src={embedUrl}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              border: "none",
+              borderRadius: 14,
+            }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReferenceCard({
+  item,
+  onPlay,
+}: {
+  item: ReferenceItem;
+  onPlay: (item: ReferenceItem) => void;
+}) {
+  return (
+    <div
+      onClick={() => onPlay(item)}
+      role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter") window.open(item.url, "_blank");
+        if (e.key === "Enter") onPlay(item);
       }}
       className="group"
       style={{
@@ -76,16 +263,16 @@ function ReferenceCard({ item }: { item: ReferenceItem }) {
         overflow: "hidden",
         cursor: "pointer",
         transitionProperty: "border-color, background-color",
-        transitionDuration: "var(--duration-fast)",
-        transitionTimingFunction: "var(--ease-out-quart)",
+        transitionDuration: "120ms",
+        transitionTimingFunction: "ease",
         display: "flex",
         flexDirection: "column",
         height: "100%",
         position: "relative",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "var(--color-border-strong)";
-        e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+        e.currentTarget.style.borderColor = "#333333";
+        e.currentTarget.style.backgroundColor = "#161616";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = "var(--color-border-subtle)";
@@ -231,6 +418,37 @@ export default function ReferencePage() {
     for (const g of mockReferenceGroups) initial[g.id] = true;
     return initial;
   });
+  const [modalEmbedUrl, setModalEmbedUrl] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastData[]>([]);
+
+  const addToast = useCallback((title: string) => {
+    const id = ++toastIdCounter;
+    setToasts((prev) => [...prev.slice(-2), { id, title, type: "danger" }]);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const handlePlay = useCallback(
+    (item: ReferenceItem) => {
+      if (!item.url) {
+        addToast("Video unavailable");
+        return;
+      }
+      const embedUrl = getYouTubeEmbedUrl(item.url);
+      if (!embedUrl) {
+        addToast("Video unavailable");
+        return;
+      }
+      setModalEmbedUrl(embedUrl);
+    },
+    [addToast]
+  );
+
+  const closeModal = useCallback(() => {
+    setModalEmbedUrl(null);
+  }, []);
 
   const toggleGroup = (id: string) => {
     setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -421,54 +639,55 @@ export default function ReferencePage() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            maxWidth: 360,
-            margin: "0 auto",
-            padding: "48px 24px",
+            padding: "40px 0",
           }}
         >
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: "50%",
-              backgroundColor: "var(--color-bg-surface-2)",
-              border: "1px solid var(--color-border-subtle)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Search style={{ width: 40, height: 40, color: "var(--color-text-tertiary)" }} />
-          </div>
+          <PlayCircle style={{ width: 32, height: 32, color: "#737373" }} />
           <p
             style={{
               fontFamily: font.body,
               fontSize: 16,
-              lineHeight: "22px",
-              fontWeight: 600,
-              letterSpacing: "-0.005em",
-              color: "var(--color-text-primary)",
+              fontWeight: 500,
+              color: "#FFFFFF",
               margin: 0,
-              marginTop: 20,
+              marginTop: 12,
               textAlign: "center",
             }}
           >
-            No results found
+            No videos in this category
           </p>
-          <p
+          <button
+            onClick={() => {
+              setActiveFilter("all");
+              setSearchQuery("");
+            }}
             style={{
+              marginTop: 16,
+              padding: "0 16px",
+              height: 40,
               fontFamily: font.body,
-              fontSize: 13,
-              lineHeight: "19px",
-              fontWeight: 400,
+              fontSize: "14.5px",
+              fontWeight: 500,
               color: "var(--color-text-secondary)",
-              margin: 0,
-              marginTop: 8,
-              textAlign: "center",
+              backgroundColor: "transparent",
+              border: "none",
+              borderRadius: 10,
+              cursor: "pointer",
+              transitionProperty: "background-color, color",
+              transitionDuration: "var(--duration-fast)",
+              transitionTimingFunction: "var(--ease-out-quart)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+              e.currentTarget.style.color = "var(--color-text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--color-text-secondary)";
             }}
           >
-            Try a different search term or filter.
-          </p>
+            Show all
+          </button>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -626,7 +845,7 @@ export default function ReferencePage() {
                     style={{ gap: 12, alignItems: "stretch" }}
                   >
                     {group.items.map((item) => (
-                      <ReferenceCard key={item.id} item={item} />
+                      <ReferenceCard key={item.id} item={item} onPlay={handlePlay} />
                     ))}
                   </div>
                 </div>
@@ -635,6 +854,48 @@ export default function ReferencePage() {
           })}
         </div>
       )}
+
+      {/* YouTube Modal */}
+      {modalEmbedUrl && (
+        <VideoModal embedUrl={modalEmbedUrl} onClose={closeModal} />
+      )}
+
+      {/* Toast container */}
+      {toasts.length > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 60,
+            display: "flex",
+            flexDirection: "column-reverse",
+            gap: 8,
+          }}
+        >
+          {toasts.map((toast) => (
+            <Toast
+              key={toast.id}
+              toast={toast}
+              onDismiss={() => dismissToast(toast.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Toast animation */}
+      <style jsx global>{`
+        @keyframes toast-enter {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
