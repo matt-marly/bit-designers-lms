@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   ArrowRight,
   ArrowLeft,
   BookOpen,
+  AlertTriangle,
 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
@@ -28,10 +29,24 @@ const font = {
 };
 
 // ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+type ToastData = {
+  message: string;
+  type: "success" | "error" | "warning";
+};
+
+const toastDotColor: Record<ToastData["type"], string> = {
+  success: "#22C55E",
+  error: "#EF4444",
+  warning: "#F59E0B",
+};
+
+// ---------------------------------------------------------------------------
 // Tab definitions
 // ---------------------------------------------------------------------------
-const tabs = ["Overview", "Lesson", "Resources", "Sessions", "Questions"] as const;
-type Tab = (typeof tabs)[number];
+const allTabs = ["Overview", "Lesson", "Resources", "Sessions", "Questions"] as const;
+type Tab = (typeof allTabs)[number];
 
 const tabCounts: Partial<Record<Tab, number>> = {
   Resources: 4,
@@ -128,22 +143,19 @@ const mockSessions = [
   { title: "Q&A: Bitcoin UX Challenges", date: "JUN 19, 2025", duration: "42 MIN" },
 ];
 
+// Mock video URL — set to null to test empty state
+const mockVideoUrl: string | null = "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1";
+
 // ---------------------------------------------------------------------------
 // Mark Complete Section
 // ---------------------------------------------------------------------------
 function MarkCompleteSection({
-  disabled,
-  hint,
   isComplete,
   onMarkComplete,
 }: {
-  disabled: boolean;
-  hint: string;
   isComplete: boolean;
   onMarkComplete: () => void;
 }) {
-  const [hovered, setHovered] = useState(false);
-
   if (isComplete) {
     return (
       <div
@@ -155,73 +167,25 @@ function MarkCompleteSection({
           width: "100%",
           height: 40,
           borderRadius: 10,
-          backgroundColor: "var(--color-success-subtle)",
-          border: "1px solid var(--color-success-border)",
-          color: "var(--color-success-text)",
+          backgroundColor: "rgba(34,197,94,0.10)",
+          border: "1px solid rgba(34,197,94,0.20)",
+          color: "#4ADE80",
           fontFamily: font.body,
           fontSize: "14.5px",
           fontWeight: 500,
+          cursor: "default",
+          pointerEvents: "none" as const,
         }}
       >
         <CheckCircle style={{ width: 16, height: 16 }} />
-        Lesson Complete
+        Completed
       </div>
     );
   }
   return (
-    <div>
-      <button
-        onClick={disabled ? undefined : onMarkComplete}
-        disabled={disabled}
-        onMouseEnter={() => { if (!disabled) setHovered(true); }}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "100%",
-          height: 40,
-          borderRadius: 10,
-          backgroundColor: !disabled && hovered ? "rgba(99,102,241,0.06)" : "transparent",
-          border: disabled
-            ? "1px solid var(--color-border-subtle)"
-            : hovered
-              ? "1px solid var(--color-indigo-border)"
-              : "1px solid var(--color-border-strong)",
-          color: !disabled && hovered
-            ? "var(--color-indigo-text)"
-            : "var(--color-text-primary)",
-          fontFamily: font.body,
-          fontSize: "14.5px",
-          lineHeight: "22px",
-          fontWeight: 500,
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.4 : 1,
-          transitionProperty: "border-color, color, background-color, opacity",
-          transitionDuration: "var(--duration-fast)",
-          transitionTimingFunction: "var(--ease-out-quart)",
-        }}
-      >
-        Mark Lesson Complete
-      </button>
-      {disabled && (
-        <p
-          style={{
-            fontFamily: font.mono,
-            fontSize: 11,
-            lineHeight: "14px",
-            fontWeight: 600,
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
-            color: "var(--color-text-tertiary)",
-            textAlign: "center",
-            marginTop: 8,
-          }}
-        >
-          {hint}
-        </p>
-      )}
-    </div>
+    <PrimaryButton fullWidth onClick={onMarkComplete}>
+      Mark complete
+    </PrimaryButton>
   );
 }
 
@@ -481,8 +445,6 @@ function QuestionsTab({
       {/* Mark Complete — Questions tab */}
       <div style={{ marginTop: 32 }}>
         <MarkCompleteSection
-          disabled={!passed}
-          hint="Pass the questions to unlock"
           isComplete={isComplete}
           onMarkComplete={onMarkComplete}
         />
@@ -618,6 +580,26 @@ function PanelToggle({
 }
 
 // ---------------------------------------------------------------------------
+// Gating helper — check if previous module is incomplete
+// ---------------------------------------------------------------------------
+function isModuleGated(slug: string): boolean {
+  const allModules = mockUnits.flatMap((unit) => unit.modules);
+  const idx = allModules.findIndex((m) => m.slug === slug);
+  if (idx <= 0) return false;
+  const prev = allModules[idx - 1];
+  return prev.status !== "passed";
+}
+
+// ---------------------------------------------------------------------------
+// Check if this is the last module across all units
+// ---------------------------------------------------------------------------
+function isLastModule(slug: string): boolean {
+  const allModules = mockUnits.flatMap((unit) => unit.modules);
+  const idx = allModules.findIndex((m) => m.slug === slug);
+  return idx === allModules.length - 1;
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 type PanelState = "expanded" | "collapsed" | "hidden";
@@ -631,6 +613,11 @@ export default function ModulePage() {
   const currentUnit = mod ? mockUnits.find((u) => u.number === mod.unitNumber) : null;
   const unitModuleCount = currentUnit ? currentUnit.modules.length : 0;
 
+  // Filter tabs: hide Questions if no quiz questions
+  const tabs = quizQuestions.length > 0
+    ? allTabs
+    : allTabs.filter((t) => t !== "Questions");
+
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [quizPassed, setQuizPassed] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -639,6 +626,18 @@ export default function ModulePage() {
   const [lessonStatuses, setLessonStatuses] = useState(mockLessons);
   const [readLesson, setReadLesson] = useState(false);
   const [videoCollapsed, setVideoCollapsed] = useState(false);
+  const [toast, setToast] = useState<ToastData | null>(null);
+
+  const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
+    setToast({ message, type });
+  }, []);
+
+  // Auto-dismiss toast after 3000ms
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     if (mod) {
@@ -663,6 +662,7 @@ export default function ModulePage() {
       const newComplete = mod.lessonsComplete + 1;
       setSidebarProgress(Math.round((newComplete / mod.lessons) * 100));
     }
+    showToast("Module complete", "success");
   }
 
   function togglePanel() {
@@ -673,17 +673,57 @@ export default function ModulePage() {
     });
   }
 
+  // Module not found
   if (!mod) {
     return (
-      <div style={{ padding: 48 }}>
-        <p style={{ fontFamily: font.body, fontSize: "14.5px", color: "var(--color-text-secondary)" }}>
-          Module not found.
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 48,
+          minHeight: 400,
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: font.display,
+            fontSize: 24,
+            lineHeight: "30px",
+            fontWeight: 600,
+            color: "#FFFFFF",
+            margin: 0,
+          }}
+        >
+          Module not found
+        </h1>
+        <p
+          style={{
+            fontFamily: font.body,
+            fontSize: 14,
+            lineHeight: "20px",
+            fontWeight: 400,
+            color: "#737373",
+            margin: 0,
+            marginTop: 8,
+            textAlign: "center",
+          }}
+        >
+          This module doesn&apos;t exist or has been removed.
         </p>
+        <div style={{ marginTop: 20 }}>
+          <Link href="/learn" style={{ textDecoration: "none" }}>
+            <OutlineButton>Back to Learn</OutlineButton>
+          </Link>
+        </div>
       </div>
     );
   }
 
   const panelWidth = panelState === "expanded" ? 280 : panelState === "collapsed" ? 48 : 0;
+  const gated = isModuleGated(slug);
+  const lastModule = isLastModule(slug);
 
   return (
     <div
@@ -734,148 +774,183 @@ export default function ModulePage() {
           </Link>
         </div>
 
-        {/* -- VIDEO SECTION (collapsible) -- */}
-        <div
-          style={{
-            flexShrink: 0,
-            display: "grid",
-            gridTemplateRows: videoCollapsed ? "0fr" : "1fr",
-            transition: "grid-template-rows 250ms cubic-bezier(0.25, 1, 0.5, 1)",
-          }}
-        >
-          <div
-            style={{
-              overflow: "hidden",
-              minHeight: 0,
-              opacity: videoCollapsed ? 0 : 1,
-              transition: "opacity 150ms cubic-bezier(0.25, 1, 0.5, 1)",
-            }}
-          >
-            <div style={{ padding: "0 32px" }}>
+        {/* -- VIDEO SECTION (collapsible) — hidden if no video URL -- */}
+        {mockVideoUrl && (
+          <>
+            <div
+              style={{
+                flexShrink: 0,
+                display: "grid",
+                gridTemplateRows: videoCollapsed ? "0fr" : "1fr",
+                transition: "grid-template-rows 250ms cubic-bezier(0.25, 1, 0.5, 1)",
+              }}
+            >
               <div
-                className="video-cap"
                 style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "16 / 9",
-                  borderRadius: 14,
                   overflow: "hidden",
-                  backgroundColor: "var(--color-bg-surface)",
+                  minHeight: 0,
+                  opacity: videoCollapsed ? 0 : 1,
+                  transition: "opacity 150ms cubic-bezier(0.25, 1, 0.5, 1)",
                 }}
               >
-                <iframe
-                  src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
-                  title={mod.title}
-                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-                />
-              </div>
+                <div style={{ padding: "0 32px" }}>
+                  <div
+                    className="video-cap"
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      aspectRatio: "16 / 9",
+                      borderRadius: 14,
+                      overflow: "hidden",
+                      backgroundColor: "var(--color-bg-surface)",
+                    }}
+                  >
+                    <iframe
+                      src={mockVideoUrl}
+                      title={mod.title}
+                      allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                    />
+                  </div>
 
-              {/* Metadata row */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "var(--color-text-tertiary)",
-                  }}
-                >
-                  Lesson {String(mod.lessonsComplete || 1).padStart(2, "0")} of {String(mod.lessons).padStart(2, "0")}
-                </span>
-              </div>
+                  {/* Metadata row */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 600,
+                        letterSpacing: "0.10em",
+                        textTransform: "uppercase",
+                        color: "var(--color-text-tertiary)",
+                      }}
+                    >
+                      Lesson {String(mod.lessonsComplete || 1).padStart(2, "0")} of {String(mod.lessons).padStart(2, "0")}
+                    </span>
+                  </div>
 
-              {/* Module title */}
-              <h1
+                  {/* Module title */}
+                  <h1
+                    style={{
+                      fontFamily: font.display,
+                      fontSize: 24,
+                      lineHeight: "30px",
+                      fontWeight: 600,
+                      letterSpacing: "-0.015em",
+                      color: "var(--color-text-primary)",
+                      margin: 0,
+                      marginTop: 16,
+                    }}
+                  >
+                    {mod.title}
+                  </h1>
+                  <p
+                    style={{
+                      fontFamily: font.mono,
+                      fontSize: 13,
+                      lineHeight: "18px",
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                      color: "var(--color-text-tertiary)",
+                      margin: 0,
+                      marginTop: 6,
+                      paddingBottom: 16,
+                    }}
+                  >
+                    Unit {mod.unitNumber} · Module {mod.moduleNumber} · {mod.track}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* -- VIDEO COLLAPSE TOGGLE -- */}
+            <button
+              onClick={() => setVideoCollapsed((v) => !v)}
+              style={{
+                flexShrink: 0,
+                width: "100%",
+                height: 28,
+                backgroundColor: "var(--color-bg-surface-2)",
+                borderTop: "1px solid var(--color-border-subtle)",
+                borderBottom: "1px solid var(--color-border-subtle)",
+                borderLeft: "none",
+                borderRight: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                cursor: "pointer",
+                color: "var(--color-text-tertiary)",
+                transitionProperty: "background-color, color",
+                transitionDuration: "var(--duration-fast)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "var(--color-bg-surface-3)";
+                e.currentTarget.style.color = "var(--color-text-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+                e.currentTarget.style.color = "var(--color-text-tertiary)";
+              }}
+            >
+              <ChevronUp
                 style={{
-                  fontFamily: font.display,
-                  fontSize: 24,
-                  lineHeight: "30px",
-                  fontWeight: 600,
-                  letterSpacing: "-0.015em",
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                  marginTop: 16,
+                  width: 14,
+                  height: 14,
+                  color: "inherit",
+                  transform: videoCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 200ms",
                 }}
-              >
-                {mod.title}
-              </h1>
-              <p
+              />
+              <span
                 style={{
                   fontFamily: font.mono,
-                  fontSize: 13,
-                  lineHeight: "18px",
+                  fontSize: 11,
+                  lineHeight: "14px",
                   fontWeight: 500,
+                  letterSpacing: "0.06em",
                   textTransform: "uppercase",
-                  color: "var(--color-text-tertiary)",
-                  margin: 0,
-                  marginTop: 6,
-                  paddingBottom: 16,
+                  color: "inherit",
                 }}
               >
-                Unit {mod.unitNumber} · Module {mod.moduleNumber} · {mod.track}
-              </p>
+                {videoCollapsed ? "Show video" : "Hide video"}
+              </span>
+            </button>
+          </>
+        )}
+
+        {/* -- ADVISORY BANNER (gated module) -- */}
+        {gated && (
+          <div style={{ padding: "16px 32px 0" }}>
+            <div
+              style={{
+                backgroundColor: "rgba(245,158,11,0.06)",
+                border: "1px solid rgba(245,158,11,0.20)",
+                borderRadius: 10,
+                padding: "12px 16px",
+                marginBottom: 20,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <AlertTriangle style={{ width: 16, height: 16, color: "#F59E0B", flexShrink: 0 }} />
+              <span
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 14,
+                  lineHeight: "20px",
+                  fontWeight: 400,
+                  color: "#B5B5B5",
+                }}
+              >
+                Complete previous modules to unlock this content.
+              </span>
             </div>
           </div>
-        </div>
-
-        {/* -- VIDEO COLLAPSE TOGGLE -- */}
-        <button
-          onClick={() => setVideoCollapsed((v) => !v)}
-          style={{
-            flexShrink: 0,
-            width: "100%",
-            height: 28,
-            backgroundColor: "var(--color-bg-surface-2)",
-            borderTop: "1px solid var(--color-border-subtle)",
-            borderBottom: "1px solid var(--color-border-subtle)",
-            borderLeft: "none",
-            borderRight: "none",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            cursor: "pointer",
-            color: "var(--color-text-tertiary)",
-            transitionProperty: "background-color, color",
-            transitionDuration: "var(--duration-fast)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-bg-surface-3)";
-            e.currentTarget.style.color = "var(--color-text-primary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
-            e.currentTarget.style.color = "var(--color-text-tertiary)";
-          }}
-        >
-          <ChevronUp
-            style={{
-              width: 14,
-              height: 14,
-              color: "inherit",
-              transform: videoCollapsed ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 200ms",
-            }}
-          />
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 500,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "inherit",
-            }}
-          >
-            {videoCollapsed ? "Show video" : "Hide video"}
-          </span>
-        </button>
+        )}
 
         {/* -- TAB BAR -- */}
         <div
@@ -1101,8 +1176,6 @@ export default function ModulePage() {
               {/* Mark Complete — Lesson tab */}
               <div style={{ marginTop: 32 }}>
                 <MarkCompleteSection
-                  disabled={!readLesson}
-                  hint="Read the lesson first to mark complete"
                   isComplete={isComplete}
                   onMarkComplete={handleMarkComplete}
                 />
@@ -1113,37 +1186,55 @@ export default function ModulePage() {
           {/* RESOURCES TAB */}
           {activeTab === "Resources" && (
             <div>
-              <SectionLabel>4 Resources</SectionLabel>
-              <div style={{ marginTop: 20 }}>
-                {mockResources.map((r, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: "14px 16px",
-                      borderBottom: i < mockResources.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      borderRadius: 10,
-                      cursor: "pointer",
-                      transitionProperty: "background-color",
-                      transitionDuration: "var(--duration-fast)",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                  >
-                    <ExternalLink style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontFamily: font.body, fontSize: "14.5px", lineHeight: "22px", fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>{r.title}</p>
-                      <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "19px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 2 }}>{r.desc}</p>
-                    </div>
-                    <span style={{ fontFamily: font.mono, fontSize: 11, lineHeight: "14px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)", backgroundColor: "var(--color-bg-surface-3)", border: "1px solid var(--color-border-subtle)", padding: "2px 8px", borderRadius: 999, flexShrink: 0 }}>
-                      {r.type}
-                    </span>
-                    <ChevronRight style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+              {mockResources.length > 0 ? (
+                <>
+                  <SectionLabel>{`${mockResources.length} Resources`}</SectionLabel>
+                  <div style={{ marginTop: 20 }}>
+                    {mockResources.map((r, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: "14px 16px",
+                          borderBottom: i < mockResources.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          transitionProperty: "background-color",
+                          transitionDuration: "var(--duration-fast)",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      >
+                        <ExternalLink style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontFamily: font.body, fontSize: "14.5px", lineHeight: "22px", fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>{r.title}</p>
+                          <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "19px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 2 }}>{r.desc}</p>
+                        </div>
+                        <span style={{ fontFamily: font.mono, fontSize: 11, lineHeight: "14px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)", backgroundColor: "var(--color-bg-surface-3)", border: "1px solid var(--color-border-subtle)", padding: "2px 8px", borderRadius: 999, flexShrink: 0 }}>
+                          {r.type}
+                        </span>
+                        <ChevronRight style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 14,
+                    lineHeight: "20px",
+                    fontWeight: 400,
+                    color: "#737373",
+                    textAlign: "center",
+                    marginTop: 48,
+                  }}
+                >
+                  No resources for this lesson.
+                </p>
+              )}
 
               <TabProgressHint isComplete={isComplete} />
             </div>
@@ -1152,48 +1243,66 @@ export default function ModulePage() {
           {/* SESSIONS TAB */}
           {activeTab === "Sessions" && (
             <div>
-              <SectionLabel>Recorded Sessions</SectionLabel>
-              <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                {mockSessions.map((s, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      backgroundColor: "var(--color-bg-surface)",
-                      border: "1px solid var(--color-border-subtle)",
-                      borderRadius: 14,
-                      padding: 20,
-                      display: "flex",
-                      gap: 16,
-                      transitionProperty: "background-color, border-color",
-                      transitionDuration: "var(--duration-fast)",
-                      transitionTimingFunction: "var(--ease-out-quart)",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)"; e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-surface)"; e.currentTarget.style.borderColor = "var(--color-border-subtle)"; }}
-                  >
-                    <div style={{ width: 120, height: 68, backgroundColor: "var(--color-bg-surface-3)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <PlayCircle style={{ width: 24, height: 24, color: "var(--color-text-tertiary)" }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ fontFamily: font.display, fontSize: 15, lineHeight: "20px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>{s.title}</h3>
-                      <span style={{ fontFamily: font.mono, fontSize: 11, lineHeight: "14px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)", marginTop: 4, display: "block" }}>
-                        {s.date} · {s.duration}
-                      </span>
-                      <div style={{ marginTop: 10 }}>
-                        <OutlineButton size="small">Watch Recording</OutlineButton>
+              {mockSessions.length > 0 ? (
+                <>
+                  <SectionLabel>Recorded Sessions</SectionLabel>
+                  <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+                    {mockSessions.map((s, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          backgroundColor: "var(--color-bg-surface)",
+                          border: "1px solid var(--color-border-subtle)",
+                          borderRadius: 14,
+                          padding: 20,
+                          display: "flex",
+                          gap: 16,
+                          transitionProperty: "background-color, border-color",
+                          transitionDuration: "var(--duration-fast)",
+                          transitionTimingFunction: "var(--ease-out-quart)",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)"; e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "var(--color-bg-surface)"; e.currentTarget.style.borderColor = "var(--color-border-subtle)"; }}
+                      >
+                        <div style={{ width: 120, height: 68, backgroundColor: "var(--color-bg-surface-3)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <PlayCircle style={{ width: 24, height: 24, color: "var(--color-text-tertiary)" }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h3 style={{ fontFamily: font.display, fontSize: 15, lineHeight: "20px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>{s.title}</h3>
+                          <span style={{ fontFamily: font.mono, fontSize: 11, lineHeight: "14px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--color-text-tertiary)", marginTop: 4, display: "block" }}>
+                            {s.date} · {s.duration}
+                          </span>
+                          <div style={{ marginTop: 10 }}>
+                            <OutlineButton size="small">Watch Recording</OutlineButton>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 14,
+                    lineHeight: "20px",
+                    fontWeight: 400,
+                    color: "#737373",
+                    textAlign: "center",
+                    marginTop: 48,
+                  }}
+                >
+                  No sessions scheduled for this module.
+                </p>
+              )}
 
               <TabProgressHint isComplete={isComplete} />
             </div>
           )}
 
           {/* QUESTIONS TAB */}
-          {activeTab === "Questions" && (
+          {activeTab === "Questions" && quizQuestions.length > 0 && (
             <QuestionsTab
               onPass={handleQuizPass}
               isComplete={isComplete}
@@ -1297,7 +1406,7 @@ export default function ModulePage() {
 
             {/* RIGHT — next module */}
             <div style={{ minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
-              {nav.next && (
+              {nav.next && !lastModule ? (
                 <Link href={`/learn/${nav.next.slug}`} style={{ textDecoration: "none", display: "inline-flex", maxWidth: "100%" }}>
                   <div
                     style={{
@@ -1346,7 +1455,32 @@ export default function ModulePage() {
                     <ArrowRight style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
                   </div>
                 </Link>
-              )}
+              ) : lastModule ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    cursor: "default",
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ textAlign: "right", minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontFamily: font.body,
+                        fontSize: 13,
+                        lineHeight: "18px",
+                        fontWeight: 500,
+                        color: "#737373",
+                        display: "block",
+                      }}
+                    >
+                      You&apos;ve finished this unit
+                    </span>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1572,6 +1706,47 @@ export default function ModulePage() {
           </>
         )}
       </aside>
+
+      {/* ── Toast notification ── */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 50,
+            background: "#1C1C1C",
+            border: "1px solid #333333",
+            borderRadius: 10,
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 280,
+            maxWidth: 360,
+            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              backgroundColor: toastDotColor[toast.type],
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: font.body,
+              fontSize: 14,
+              color: "#FFFFFF",
+            }}
+          >
+            {toast.message}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
