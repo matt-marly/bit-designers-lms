@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ExternalLink, ChevronDown, CheckCircle } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
@@ -48,30 +48,68 @@ function truncateUrl(url: string, max = 50): string {
   return url.slice(0, max) + "\u2026";
 }
 
+// Toast
+type ToastData = {
+  message: string;
+  type: "success" | "error";
+};
+
+const toastDotColor: Record<ToastData["type"], string> = {
+  success: "#22C55E",
+  error: "#EF4444",
+};
+
 type ReviewStatus = "pending" | "passed" | "needs_revision";
 
-interface ReviewState {
+interface ReviewItemState {
   status: ReviewStatus;
   outcome?: "passed" | "needs_revision";
   comment: string;
   submitted: boolean;
+  feedbackError: boolean;
 }
 
-function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
+function ReviewCard({
+  item,
+  onToast,
+}: {
+  item: (typeof mockReviewQueue)[number];
+  onToast: (message: string, type: ToastData["type"]) => void;
+}) {
   const [rubricOpen, setRubricOpen] = useState(false);
-  const [review, setReview] = useState<ReviewState>({
+  const [review, setReview] = useState<ReviewItemState>({
     status: item.status as ReviewStatus,
     outcome: undefined,
     comment: "",
     submitted: false,
+    feedbackError: false,
   });
 
   const statusVariant = review.status === "passed" ? "success" : review.status === "needs_revision" ? "warning" : "indigo";
   const statusLabel = review.status === "passed" ? "PASSED" : review.status === "needs_revision" ? "NEEDS REVISION" : "PENDING";
 
+  const hasUrl = Boolean(item.linkUrl);
+  const canSubmit = Boolean(review.outcome) && review.comment.trim().length > 0;
+
   function handleSubmitReview() {
-    if (!review.outcome || !review.comment.trim()) return;
-    setReview((prev) => ({ ...prev, status: prev.outcome!, submitted: true }));
+    if (!review.outcome) {
+      onToast("Please select an outcome", "error");
+      return;
+    }
+    if (!review.comment.trim()) {
+      setReview((p) => ({ ...p, feedbackError: true }));
+      onToast("Feedback is required", "error");
+      return;
+    }
+    setReview((prev) => ({
+      ...prev,
+      status: prev.outcome!,
+      submitted: true,
+      outcome: undefined,
+      comment: "",
+      feedbackError: false,
+    }));
+    onToast("Review submitted", "success");
   }
 
   return (
@@ -105,7 +143,13 @@ function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
           {truncateUrl(item.linkUrl)}
         </a>
         <div style={{ marginLeft: "auto" }}>
-          <OutlineButton size="small" onClick={() => window.open(item.linkUrl, "_blank")}>Open in Figma</OutlineButton>
+          <OutlineButton
+            size="small"
+            disabled={!hasUrl}
+            onClick={() => window.open(item.linkUrl, "_blank")}
+          >
+            Open in Figma
+          </OutlineButton>
         </div>
       </div>
 
@@ -144,12 +188,33 @@ function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
               <button
                 onClick={() => setReview((p) => ({ ...p, outcome: "passed" }))}
                 style={{
-                  flex: "1 1 0", height: 40, borderRadius: 10,
-                  border: `1px solid ${review.outcome === "passed" ? "rgba(34,197,94,0.60)" : "rgba(34,197,94,0.40)"}`,
-                  backgroundColor: review.outcome === "passed" ? "rgba(34,197,94,0.25)" : "rgba(34,197,94,0.15)",
-                  color: "var(--color-success-text)",
-                  fontFamily: font.body, fontSize: 14, fontWeight: 600, cursor: "pointer",
-                  transitionProperty: "background-color, border-color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
+                  flex: 1, height: 40, borderRadius: 10, cursor: "pointer",
+                  border: review.outcome === "passed"
+                    ? "1px solid rgba(34,197,94,0.30)"
+                    : "1px solid #333333",
+                  backgroundColor: review.outcome === "passed"
+                    ? "rgba(34,197,94,0.10)"
+                    : "transparent",
+                  color: review.outcome === "passed"
+                    ? "#4ADE80"
+                    : "#737373",
+                  fontFamily: font.body, fontSize: 14, fontWeight: 600,
+                  padding: "0 20px",
+                  transitionProperty: "background-color, border-color, color",
+                  transitionDuration: "120ms",
+                  transitionTimingFunction: "ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (review.outcome !== "passed") {
+                    e.currentTarget.style.borderColor = "rgba(34,197,94,0.30)";
+                    e.currentTarget.style.color = "#B5B5B5";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (review.outcome !== "passed") {
+                    e.currentTarget.style.borderColor = "#333333";
+                    e.currentTarget.style.color = "#737373";
+                  }
                 }}
               >
                 Pass
@@ -157,12 +222,33 @@ function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
               <button
                 onClick={() => setReview((p) => ({ ...p, outcome: "needs_revision" }))}
                 style={{
-                  flex: "1 1 0", height: 40, borderRadius: 10,
-                  border: `1px solid ${review.outcome === "needs_revision" ? "rgba(245,158,11,0.60)" : "rgba(245,158,11,0.40)"}`,
-                  backgroundColor: review.outcome === "needs_revision" ? "rgba(245,158,11,0.25)" : "rgba(245,158,11,0.15)",
-                  color: "var(--color-warning-text)",
-                  fontFamily: font.body, fontSize: 14, fontWeight: 600, cursor: "pointer",
-                  transitionProperty: "background-color, border-color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
+                  flex: 1, height: 40, borderRadius: 10, cursor: "pointer",
+                  border: review.outcome === "needs_revision"
+                    ? "1px solid rgba(245,158,11,0.30)"
+                    : "1px solid #333333",
+                  backgroundColor: review.outcome === "needs_revision"
+                    ? "rgba(245,158,11,0.10)"
+                    : "transparent",
+                  color: review.outcome === "needs_revision"
+                    ? "#F59E0B"
+                    : "#737373",
+                  fontFamily: font.body, fontSize: 14, fontWeight: 600,
+                  padding: "0 20px",
+                  transitionProperty: "background-color, border-color, color",
+                  transitionDuration: "120ms",
+                  transitionTimingFunction: "ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (review.outcome !== "needs_revision") {
+                    e.currentTarget.style.borderColor = "rgba(245,158,11,0.30)";
+                    e.currentTarget.style.color = "#B5B5B5";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (review.outcome !== "needs_revision") {
+                    e.currentTarget.style.borderColor = "#333333";
+                    e.currentTarget.style.color = "#737373";
+                  }
                 }}
               >
                 Needs Revision
@@ -174,15 +260,23 @@ function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
               <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Feedback for learner</label>
               <textarea
                 rows={4} placeholder="Write your feedback..."
-                value={review.comment} onChange={(e) => setReview((p) => ({ ...p, comment: e.target.value }))}
+                value={review.comment}
+                onChange={(e) => setReview((p) => ({ ...p, comment: e.target.value, feedbackError: false }))}
                 style={{ width: "100%", padding: "12px 14px", borderRadius: 10, backgroundColor: "var(--color-bg-surface-2)", border: "1px solid var(--color-border-strong)", color: "var(--color-text-primary)", fontFamily: font.body, fontSize: "14.5px", lineHeight: "22px", fontWeight: 400, resize: "vertical", minHeight: 96, outline: "none", boxSizing: "border-box" }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
               />
+              {review.feedbackError && (
+                <p style={{ fontFamily: font.body, fontSize: 12, fontWeight: 400, color: "#F87171", margin: 0, marginTop: 6 }}>
+                  Feedback is required before submitting
+                </p>
+              )}
             </div>
 
             <div style={{ marginTop: 16 }}>
-              <PrimaryButton fullWidth disabled={!review.outcome || !review.comment.trim()} onClick={handleSubmitReview}>Submit Review</PrimaryButton>
+              <div style={{ opacity: canSubmit ? 1 : 0.4, cursor: canSubmit ? "pointer" : "not-allowed", pointerEvents: canSubmit ? "auto" : "none" }}>
+                <PrimaryButton fullWidth onClick={handleSubmitReview}>Submit Review</PrimaryButton>
+              </div>
               {(!review.outcome || !review.comment.trim()) && (
                 <p
                   style={{
@@ -216,7 +310,18 @@ function ReviewCard({ item }: { item: (typeof mockReviewQueue)[number] }) {
 
 export default function ReviewQueuePage() {
   const [filter, setFilter] = useState<"all" | "pending" | "reviewed">("all");
+  const [toast, setToast] = useState<ToastData | null>(null);
   const pendingCount = mockReviewQueue.filter((r) => r.status === "pending").length;
+
+  const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
+    setToast({ message, type });
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const filtered = mockReviewQueue.filter((item) => {
     if (filter === "pending") return item.status === "pending";
@@ -254,13 +359,78 @@ export default function ReviewQueuePage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>No submissions match this filter</p>
-          <p style={{ fontFamily: font.body, fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 4 }}>Try selecting a different filter above.</p>
-        </div>
+        filter === "pending" ? (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <CheckCircle style={{ width: 32, height: 32, color: "#22C55E", margin: "0 auto" }} />
+            <p style={{ fontFamily: font.body, fontSize: 16, fontWeight: 500, color: "#FFFFFF", margin: 0, marginTop: 12 }}>
+              No submissions pending review
+            </p>
+          </div>
+        ) : filter === "reviewed" ? (
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 400, color: "#737373", margin: 0 }}>
+              No reviewed submissions yet.
+            </p>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>No submissions match this filter</p>
+            <p style={{ fontFamily: font.body, fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 4 }}>Try selecting a different filter above.</p>
+          </div>
+        )
       ) : (
-        filtered.map((item) => <ReviewCard key={item.id} item={item} />)
+        filtered.map((item) => <ReviewCard key={item.id} item={item} onToast={showToast} />)
       )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          role={toast.type === "error" ? "alert" : "status"}
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 50,
+            background: "#1C1C1C",
+            border: "1px solid #333333",
+            borderRadius: 10,
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 280,
+            maxWidth: 360,
+            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
+            animation: "toast-enter 240ms cubic-bezier(0.25, 1, 0.5, 1)",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              backgroundColor: toastDotColor[toast.type],
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: font.body,
+              fontSize: 14,
+              color: "#FFFFFF",
+            }}
+          >
+            {toast.message}
+          </span>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes toast-enter {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

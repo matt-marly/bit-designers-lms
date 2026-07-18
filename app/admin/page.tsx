@@ -258,11 +258,11 @@ export default function AdminOverviewPage() {
                   justifyContent: "space-between",
                   gap: 16,
                   transitionProperty: "background-color",
-                  transitionDuration: "var(--duration-fast)",
-                  transitionTimingFunction: "var(--ease-out-quart)",
+                  transitionDuration: "120ms",
+                  transitionTimingFunction: "ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#1C1C1C";
+                  e.currentTarget.style.backgroundColor = "#161616";
                   const arrow = e.currentTarget.querySelector("[data-arrow]") as HTMLElement | null;
                   if (arrow) arrow.style.color = "var(--color-text-primary)";
                 }}
@@ -338,64 +338,80 @@ export default function AdminOverviewPage() {
           <SectionLabel>RECENT SUBMISSIONS</SectionLabel>
         </div>
         <div style={{ border: "1px solid #242424", borderRadius: 12, overflow: "hidden" }}>
-          {mockReviewQueue.map((item, i) => (
-            <div
-              key={item.id}
+          {mockReviewQueue.length === 0 ? (
+            <p
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "14px 20px",
-                borderBottom: i < mockReviewQueue.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
-                gap: 16,
+                fontFamily: font.body,
+                fontSize: 14,
+                fontWeight: 400,
+                color: "#737373",
+                margin: 0,
+                padding: 24,
+                textAlign: "center",
               }}
             >
-              <div style={{ minWidth: 0 }}>
-                <p
-                  style={{
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: "var(--color-text-primary)",
-                    margin: 0,
-                  }}
-                >
-                  {item.learnerName}
-                </p>
-                <p
-                  style={{
-                    fontFamily: font.body,
-                    fontSize: 13,
-                    fontWeight: 400,
-                    color: "var(--color-text-secondary)",
-                    margin: 0,
-                    marginTop: 2,
-                  }}
-                >
-                  {item.missionTitle}
-                </p>
-                <p
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "var(--color-text-tertiary)",
-                    margin: 0,
-                    marginTop: 2,
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  VERSION {item.version} · {timeAgo(item.submittedAt)}
-                </p>
+              No recent submissions.
+            </p>
+          ) : (
+            mockReviewQueue.map((item, i) => (
+              <div
+                key={item.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 20px",
+                  borderBottom: i < mockReviewQueue.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
+                  gap: 16,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "var(--color-text-primary)",
+                      margin: 0,
+                    }}
+                  >
+                    {item.learnerName}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: 13,
+                      fontWeight: 400,
+                      color: "var(--color-text-secondary)",
+                      margin: 0,
+                      marginTop: 2,
+                    }}
+                  >
+                    {item.missionTitle}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: font.mono,
+                      fontSize: 11,
+                      lineHeight: "14px",
+                      fontWeight: 500,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--color-text-tertiary)",
+                      margin: 0,
+                      marginTop: 2,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    VERSION {item.version} · {timeAgo(item.submittedAt)}
+                  </p>
+                </div>
+                <OutlineButton size="small" onClick={() => router.push("/admin/review")}>
+                  Review
+                </OutlineButton>
               </div>
-              <OutlineButton size="small" onClick={() => router.push("/admin/review")}>
-                Review
-              </OutlineButton>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
