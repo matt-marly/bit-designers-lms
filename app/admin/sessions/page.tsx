@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { PrimaryButton } from "@/components/ui/custom/buttons";
 import { mockSessions } from "@/lib/mock-live-data";
@@ -50,6 +49,16 @@ const inputStyle: React.CSSProperties = {
 const selectStyle: React.CSSProperties = {
   ...inputStyle,
   cursor: "pointer",
+};
+
+type ToastData = {
+  message: string;
+  type: "success" | "error";
+};
+
+const toastDotColor: Record<ToastData["type"], string> = {
+  success: "#22C55E",
+  error: "#EF4444",
 };
 
 function formatSessionDate(date: string, time: string, tz: string): string {
@@ -124,6 +133,30 @@ function handleBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement |
   e.currentTarget.style.boxShadow = "none";
 }
 
+function isValidUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
+function isValidYouTubeUrl(url: string): boolean {
+  return /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(url);
+}
+
+function isDateInPast(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const parts = dateStr.split("/").map((s) => s.trim());
+  let parsed: Date | null = null;
+  if (parts.length === 3) {
+    const [dd, mm, yyyy] = parts;
+    parsed = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+  } else {
+    parsed = new Date(dateStr);
+  }
+  if (!parsed || isNaN(parsed.getTime())) return false;
+  return parsed < today;
+}
+
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<LiveSession[]>([...mockSessions]);
   const [title, setTitle] = useState("");
@@ -133,12 +166,45 @@ export default function SessionsPage() {
   const [duration, setDuration] = useState(60);
   const [cohort, setCohort] = useState("Cohort 01");
   const [link, setLink] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [dateWarning, setDateWarning] = useState<string | null>(null);
+  const [confirmingSlug, setConfirmingSlug] = useState<string | null>(null);
+  const [recordingSlug, setRecordingSlug] = useState<string | null>(null);
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   const canSchedule = title.trim() !== "" && date !== "" && time !== "" && link.trim() !== "";
 
+  const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
+    setToast({ message, type });
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), toast.type === "error" ? 5000 : 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  function handleDateChange(value: string) {
+    setDate(value);
+    setDateWarning(isDateInPast(value) ? "This date is in the past" : null);
+  }
+
+  function handleLinkBlur() {
+    if (link.trim() !== "" && !isValidUrl(link.trim())) {
+      setLinkError("Please enter a valid URL");
+    } else {
+      setLinkError(null);
+    }
+  }
+
   function handleSchedule() {
     if (!canSchedule) return;
+    if (link.trim() !== "" && !isValidUrl(link.trim())) {
+      setLinkError("Please enter a valid URL");
+      return;
+    }
     const newSession: LiveSession = {
       slug: `session-${Date.now()}`,
       title: title.trim(),
@@ -156,17 +222,40 @@ export default function SessionsPage() {
       tags: [],
     };
     setSessions((prev) => [newSession, ...prev]);
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      setTitle("");
-      setDescription("");
-      setDate("");
-      setTime("");
-      setDuration(60);
-      setCohort("Cohort 01");
-      setLink("");
-    }, 2000);
+    setTitle("");
+    setDescription("");
+    setDate("");
+    setTime("");
+    setDuration(60);
+    setCohort("Cohort 01");
+    setLink("");
+    setLinkError(null);
+    setDateWarning(null);
+    showToast("Session scheduled");
+  }
+
+  function handleCancelSession(slug: string) {
+    setSessions((prev) => prev.filter((s) => s.slug !== slug));
+    setConfirmingSlug(null);
+    showToast("Session cancelled");
+  }
+
+  function handleSaveRecording(slug: string) {
+    if (!isValidYouTubeUrl(recordingUrl.trim())) {
+      setRecordingError("Please enter a valid YouTube URL");
+      return;
+    }
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.slug === slug
+          ? { ...s, recordingUrl: recordingUrl.trim(), status: "recorded" as const }
+          : s
+      )
+    );
+    setRecordingSlug(null);
+    setRecordingUrl("");
+    setRecordingError(null);
+    showToast("Recording added");
   }
 
   return (
@@ -178,6 +267,10 @@ export default function SessionsPage() {
         input[type="time"]::-webkit-inner-spin-button {
           display: none;
           -webkit-appearance: none;
+        }
+        @keyframes toast-enter {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
@@ -200,141 +293,152 @@ export default function SessionsPage() {
       <div style={{ ...cardStyle, padding: 24, marginBottom: 32 }}>
         <SectionLabel>SCHEDULE NEW SESSION</SectionLabel>
 
-        {showSuccess ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20 }}>
-            <CheckCircle style={{ width: 16, height: 16, color: "var(--color-success-text)" }} />
-            <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-success-text)" }}>
-              Session scheduled
-            </span>
+        <>
+          <div style={{ marginTop: 20 }}>
+            <label style={labelStyle}>Title</label>
+            <input
+              type="text"
+              placeholder="Session title..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              style={inputStyle}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            />
           </div>
-        ) : (
-          <>
-            <div style={{ marginTop: 20 }}>
-              <label style={labelStyle}>Title</label>
+
+          <div style={{ marginTop: 16 }}>
+            <label style={labelStyle}>Description</label>
+            <textarea
+              rows={3}
+              placeholder="Session description..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              style={{
+                ...inputStyle,
+                height: "auto",
+                padding: "12px 14px",
+                minHeight: 80,
+                resize: "vertical",
+              }}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 140px" }}>
+              <label style={labelStyle}>Date</label>
               <input
                 type="text"
-                placeholder="Session title..."
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                inputMode="numeric"
+                placeholder="DD / MM / YYYY"
+                value={date}
+                onChange={(e) => handleDateChange(e.target.value)}
                 style={inputStyle}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
               />
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label style={labelStyle}>Description</label>
-              <textarea
-                rows={3}
-                placeholder="Session description..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                style={{
-                  ...inputStyle,
-                  height: "auto",
-                  padding: "12px 14px",
-                  minHeight: 80,
-                  resize: "vertical",
-                }}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
-              <div style={{ flex: "1 1 140px" }}>
-                <label style={labelStyle}>Date</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="DD / MM / YYYY"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  style={inputStyle}
-                  onFocus={handleFocus}
-                  onBlur={handleBlur}
-                />
-              </div>
-              <div style={{ flex: "1 1 140px" }}>
-                <label style={labelStyle}>Time</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="00:00"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  style={inputStyle}
-                  onFocus={handleFocus}
-                  onBlur={handleBlur}
-                />
-              </div>
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label style={labelStyle}>Duration</label>
-              <select
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                style={selectStyle}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-              >
-                <option value={60}>60 min</option>
-                <option value={90}>90 min</option>
-                <option value={120}>120 min</option>
-              </select>
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label style={labelStyle}>Cohort</label>
-              <select
-                value={cohort}
-                onChange={(e) => setCohort(e.target.value)}
-                style={selectStyle}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-              >
-                <option value="Cohort 01">Cohort 01</option>
-                <option value="Cohort 02">Cohort 02</option>
-              </select>
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label style={labelStyle}>Meeting link</label>
-              <input
-                type="url"
-                placeholder="https://zoom.us/..."
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-                style={inputStyle}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-              />
-            </div>
-
-            <div style={{ marginTop: 20 }}>
-              <PrimaryButton fullWidth disabled={!canSchedule} onClick={handleSchedule}>
-                Schedule Session
-              </PrimaryButton>
-              {!canSchedule && (
-                <p
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    color: "var(--color-text-tertiary)",
-                    textAlign: "center",
-                    margin: 0,
-                    marginTop: 8,
-                  }}
-                >
-                  Fill in title, date, time, and meeting link
+              {dateWarning && (
+                <p style={{ fontFamily: font.body, fontSize: 12, color: "#F59E0B", margin: 0, marginTop: 6 }}>
+                  {dateWarning}
                 </p>
               )}
             </div>
-          </>
-        )}
+            <div style={{ flex: "1 1 140px" }}>
+              <label style={labelStyle}>Time</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="00:00"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                style={inputStyle}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <label style={labelStyle}>Duration</label>
+            <select
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              style={selectStyle}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            >
+              <option value={60}>60 min</option>
+              <option value={90}>90 min</option>
+              <option value={120}>120 min</option>
+            </select>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <label style={labelStyle}>Cohort</label>
+            <select
+              value={cohort}
+              onChange={(e) => setCohort(e.target.value)}
+              style={selectStyle}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            >
+              <option value="Cohort 01">Cohort 01</option>
+              <option value="Cohort 02">Cohort 02</option>
+            </select>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <label style={labelStyle}>Meeting link</label>
+            <input
+              type="url"
+              placeholder="https://zoom.us/..."
+              value={link}
+              onChange={(e) => { setLink(e.target.value); if (linkError) setLinkError(null); }}
+              style={{
+                ...inputStyle,
+                borderColor: linkError ? "rgba(239,68,68,0.55)" : "#333333",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = linkError ? "rgba(239,68,68,0.55)" : "rgba(99,102,241,0.70)";
+                e.currentTarget.style.boxShadow = linkError ? "0 0 0 3px rgba(239,68,68,0.15)" : "0 0 0 3px rgba(99,102,241,0.15)";
+              }}
+              onBlur={(e) => {
+                handleLinkBlur();
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.borderColor = (link.trim() !== "" && !isValidUrl(link.trim())) ? "rgba(239,68,68,0.55)" : "#333333";
+              }}
+            />
+            {linkError && (
+              <p style={{ fontFamily: font.body, fontSize: 12, color: "#F87171", margin: 0, marginTop: 6 }}>
+                {linkError}
+              </p>
+            )}
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <PrimaryButton fullWidth disabled={!canSchedule} onClick={handleSchedule}>
+              Schedule Session
+            </PrimaryButton>
+            {!canSchedule && (
+              <p
+                style={{
+                  fontFamily: font.mono,
+                  fontSize: 11,
+                  lineHeight: "14px",
+                  fontWeight: 500,
+                  color: "var(--color-text-tertiary)",
+                  textAlign: "center",
+                  margin: 0,
+                  marginTop: 8,
+                }}
+              >
+                Fill in title, date, time, and meeting link
+              </p>
+            )}
+          </div>
+        </>
       </div>
 
       {/* Sessions list */}
@@ -359,132 +463,295 @@ export default function SessionsPage() {
           overflow: "hidden",
         }}
       >
-        {sessions.map((session, i) => (
-          <div
-            key={session.slug}
-            style={{
-              padding: "16px 20px",
-              borderBottom: i < sessions.length - 1 ? "1px solid #242424" : "none",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            {/* Left */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
-              <span
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "#FFFFFF",
-                }}
-              >
-                {session.title}
-              </span>
-              <span
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#737373",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {formatSessionDate(session.date, session.time, session.timezone)}
-              </span>
-              <span
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 13,
-                  fontWeight: 400,
-                  color: "#B5B5B5",
-                }}
-              >
-                with {session.host} · {session.duration} min
-              </span>
-            </div>
-
-            {/* Center: status */}
-            <StatusBadge status={session.status} />
-
-            {/* Right: actions */}
-            <div style={{ display: "flex", gap: 8, flexShrink: 0, marginLeft: 16 }}>
-              {session.status === "upcoming" && (
-                <>
-                  <button
-                    style={{
-                      height: 28,
-                      padding: "0 12px",
-                      borderRadius: 8,
-                      backgroundColor: "transparent",
-                      border: "1px solid #333333",
-                      color: "#FFFFFF",
-                      fontFamily: font.body,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      transitionProperty: "background-color, border-color, color",
-                      transitionDuration: "var(--duration-fast)",
-                      transitionTimingFunction: "var(--ease-out-quart)",
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    style={{
-                      height: 28,
-                      padding: "0 12px",
-                      borderRadius: 8,
-                      backgroundColor: "transparent",
-                      border: "1px solid #333333",
-                      color: "#FFFFFF",
-                      fontFamily: font.body,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      transitionProperty: "background-color, border-color, color",
-                      transitionDuration: "var(--duration-fast)",
-                      transitionTimingFunction: "var(--ease-out-quart)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "rgba(239,68,68,0.55)";
-                      e.currentTarget.style.color = "#F87171";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#333333";
-                      e.currentTarget.style.color = "#FFFFFF";
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
-              {session.status === "recorded" && (
-                <button
+        {sessions.length === 0 ? (
+          <div style={{ padding: 24, textAlign: "center" }}>
+            <p style={{ fontFamily: font.body, fontSize: 14, color: "#737373", margin: 0 }}>
+              No sessions scheduled yet.
+            </p>
+          </div>
+        ) : (
+          sessions.map((session, i) => (
+            <div
+              key={session.slug}
+              style={{
+                padding: "16px 20px",
+                borderBottom: i < sessions.length - 1 ? "1px solid #242424" : "none",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              {/* Left */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
+                <span
                   style={{
-                    height: 28,
-                    padding: "0 12px",
-                    borderRadius: 8,
-                    backgroundColor: "transparent",
-                    border: "1px solid #333333",
-                    color: "#FFFFFF",
                     fontFamily: font.body,
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 500,
-                    cursor: "pointer",
-                    transitionProperty: "background-color, border-color, color",
-                    transitionDuration: "var(--duration-fast)",
-                    transitionTimingFunction: "var(--ease-out-quart)",
+                    color: "#FFFFFF",
                   }}
                 >
-                  Add Recording
-                </button>
-              )}
+                  {session.title}
+                </span>
+                <span
+                  style={{
+                    fontFamily: font.mono,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "#737373",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {formatSessionDate(session.date, session.time, session.timezone)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 13,
+                    fontWeight: 400,
+                    color: "#B5B5B5",
+                  }}
+                >
+                  with {session.host} · {session.duration} min
+                </span>
+              </div>
+
+              {/* Center: status */}
+              <StatusBadge status={session.status} />
+
+              {/* Right: actions */}
+              <div style={{ display: "flex", gap: 8, flexShrink: 0, marginLeft: 16, alignItems: "center" }}>
+                {session.status === "upcoming" && (
+                  confirmingSlug === session.slug ? (
+                    <>
+                      <span style={{ fontFamily: font.body, fontSize: 13, color: "#737373" }}>
+                        Cancel this session?
+                      </span>
+                      <button
+                        onClick={() => handleCancelSession(session.slug)}
+                        style={{
+                          height: 28,
+                          padding: "0 12px",
+                          borderRadius: 10,
+                          backgroundColor: "transparent",
+                          border: "1px solid rgba(239,68,68,0.35)",
+                          color: "#F87171",
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Yes, cancel
+                      </button>
+                      <button
+                        onClick={() => setConfirmingSlug(null)}
+                        style={{
+                          height: 28,
+                          padding: "0 12px",
+                          borderRadius: 0,
+                          backgroundColor: "transparent",
+                          border: "none",
+                          color: "var(--color-text-secondary)",
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Keep
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        style={{
+                          height: 28,
+                          padding: "0 12px",
+                          borderRadius: 8,
+                          backgroundColor: "transparent",
+                          border: "1px solid #333333",
+                          color: "#FFFFFF",
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          transitionProperty: "background-color, border-color, color",
+                          transitionDuration: "var(--duration-fast)",
+                          transitionTimingFunction: "var(--ease-out-quart)",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setConfirmingSlug(session.slug)}
+                        style={{
+                          height: 28,
+                          padding: "0 12px",
+                          borderRadius: 8,
+                          backgroundColor: "transparent",
+                          border: "1px solid #333333",
+                          color: "#FFFFFF",
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          transitionProperty: "background-color, border-color, color",
+                          transitionDuration: "var(--duration-fast)",
+                          transitionTimingFunction: "var(--ease-out-quart)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = "rgba(239,68,68,0.55)";
+                          e.currentTarget.style.color = "#F87171";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "#333333";
+                          e.currentTarget.style.color = "#FFFFFF";
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )
+                )}
+                {session.status === "recorded" && (
+                  recordingSlug === session.slug ? (
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <div>
+                        <input
+                          type="url"
+                          placeholder="https://youtube.com/..."
+                          value={recordingUrl}
+                          onChange={(e) => { setRecordingUrl(e.target.value); if (recordingError) setRecordingError(null); }}
+                          style={{
+                            ...inputStyle,
+                            width: 240,
+                            borderColor: recordingError ? "rgba(239,68,68,0.55)" : "#333333",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = recordingError ? "rgba(239,68,68,0.55)" : "rgba(99,102,241,0.70)";
+                            e.currentTarget.style.boxShadow = recordingError ? "0 0 0 3px rgba(239,68,68,0.15)" : "0 0 0 3px rgba(99,102,241,0.15)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = recordingError ? "rgba(239,68,68,0.55)" : "#333333";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
+                        />
+                        {recordingError && (
+                          <p style={{ fontFamily: font.body, fontSize: 12, color: "#F87171", margin: 0, marginTop: 6 }}>
+                            {recordingError}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleSaveRecording(session.slug)}
+                        style={{
+                          height: 32,
+                          padding: "0 12px",
+                          borderRadius: 10,
+                          backgroundColor: "#6366F1",
+                          border: "none",
+                          color: "#FFFFFF",
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          transitionProperty: "background-color",
+                          transitionDuration: "var(--duration-fast)",
+                          transitionTimingFunction: "var(--ease-out-quart)",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#777AF5")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#6366F1")}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setRecordingSlug(null); setRecordingUrl(""); setRecordingError(null); }}
+                        style={{
+                          height: 32,
+                          padding: "0 12px",
+                          borderRadius: 0,
+                          backgroundColor: "transparent",
+                          border: "none",
+                          color: "var(--color-text-secondary)",
+                          fontFamily: font.body,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setRecordingSlug(session.slug); setRecordingUrl(session.recordingUrl || ""); setRecordingError(null); }}
+                      style={{
+                        height: 28,
+                        padding: "0 12px",
+                        borderRadius: 8,
+                        backgroundColor: "transparent",
+                        border: "1px solid #333333",
+                        color: "#FFFFFF",
+                        fontFamily: font.body,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        transitionProperty: "background-color, border-color, color",
+                        transitionDuration: "var(--duration-fast)",
+                        transitionTimingFunction: "var(--ease-out-quart)",
+                      }}
+                    >
+                      Add Recording
+                    </button>
+                  )
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          role={toast.type === "error" ? "alert" : "status"}
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 50,
+            background: "#1C1C1C",
+            border: "1px solid #333333",
+            borderRadius: 10,
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 280,
+            maxWidth: 360,
+            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
+            animation: "toast-enter 240ms cubic-bezier(0.25, 1, 0.5, 1)",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              backgroundColor: toastDotColor[toast.type],
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontFamily: font.body, fontSize: 14, color: "#FFFFFF" }}>
+            {toast.message}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
