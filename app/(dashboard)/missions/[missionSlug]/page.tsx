@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   Circle,
   GraduationCap,
   CheckSquare,
+  ChevronRight,
 } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { PrimaryButton } from "@/components/ui/custom/buttons";
@@ -197,19 +198,94 @@ export default function MissionDetailPage() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "warning";
+  } | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [rubricOpen, setRubricOpen] = useState(false);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  function validateUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   if (!mission) {
     return (
-      <div style={{ padding: 48 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "120px 24px",
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: font.display,
+            fontSize: 24,
+            fontWeight: 600,
+            color: "#FFFFFF",
+            margin: 0,
+          }}
+        >
+          Mission not found
+        </h1>
         <p
           style={{
             fontFamily: font.body,
-            fontSize: "14.5px",
-            color: "var(--color-text-secondary)",
+            fontSize: 14,
+            color: "#737373",
+            margin: 0,
+            marginTop: 8,
+            textAlign: "center",
           }}
         >
-          Mission not found.
+          This mission doesn&apos;t exist or has been removed.
         </p>
+        <Link
+          href="/missions"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: 40,
+            padding: "0 16px",
+            borderRadius: 10,
+            border: "1px solid #333333",
+            backgroundColor: "transparent",
+            color: "#FFFFFF",
+            fontFamily: font.body,
+            fontSize: "14.5px",
+            fontWeight: 500,
+            textDecoration: "none",
+            marginTop: 20,
+            transitionProperty: "background-color, border-color",
+            transitionDuration: "120ms",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.borderColor = "#333333";
+          }}
+        >
+          Back to Missions
+        </Link>
       </div>
     );
   }
@@ -225,7 +301,20 @@ export default function MissionDetailPage() {
     (mission.status === "not-started" || mission.status === "needs-revision");
 
   function handleFileSelect(file: File) {
-    if (file.size > 10 * 1024 * 1024) return;
+    const allowedTypes = [
+      "application/pdf",
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setToast({ message: "Only PDF or image files accepted", type: "error" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setToast({ message: "File must be under 10MB", type: "error" });
+      return;
+    }
     const sizeKb = Math.round(file.size / 1024);
     const sizeStr = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
     setFileName(file.name);
@@ -233,11 +322,25 @@ export default function MissionDetailPage() {
   }
 
   function handleSubmit() {
-    if (!linkValue.trim()) return;
+    if (!mission) return;
+    if (!linkValue.trim()) {
+      setLinkError("A link to your work is required");
+      return;
+    }
+    if (!validateUrl(linkValue.trim())) {
+      setLinkError("Please enter a valid URL");
+      return;
+    }
+    setLinkError(null);
+    const isRevision = mission.status === "needs-revision";
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
       setSubmitSuccess(true);
+      setToast({
+        message: isRevision ? "Resubmission received" : "Deliverable submitted",
+        type: "success",
+      });
     }, 1500);
   }
 
@@ -266,55 +369,94 @@ export default function MissionDetailPage() {
     );
   }
 
-  // B. Evaluation Rubric
+  // B. Evaluation Rubric (collapsed by default)
   if (isReviewed && mission.rubric) {
     sections.push(
       <div key="rubric" style={{ padding: 24 }}>
-        <SectionLabel>Evaluation Rubric</SectionLabel>
-        <p
+        <button
+          onClick={() => setRubricOpen(!rubricOpen)}
           style={{
-            fontFamily: font.body,
-            fontSize: 13,
-            lineHeight: "19px",
-            fontWeight: 400,
-            color: "var(--color-text-tertiary)",
-            margin: 0,
-            marginTop: 4,
-            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
           }}
         >
-          Your submission will be evaluated against these criteria
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {mission.rubric.map((item, i) => (
-            <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-              <span
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 12,
-                  lineHeight: "22px",
-                  fontWeight: 500,
-                  color: "var(--color-text-tertiary)",
-                  flexShrink: 0,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {String(i + 1).padStart(2, "0")}.
-              </span>
-              <span
-                style={{
-                  fontFamily: font.body,
-                  fontSize: "14.5px",
-                  lineHeight: "22px",
-                  fontWeight: 400,
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                {item}
-              </span>
+          <ChevronRight
+            style={{
+              width: 14,
+              height: 14,
+              color: "var(--color-text-tertiary)",
+              transform: rubricOpen ? "rotate(90deg)" : "rotate(0deg)",
+              transition: "transform 120ms ease",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: font.mono,
+              fontSize: 11,
+              lineHeight: "14px",
+              fontWeight: 600,
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
+              color: "var(--color-text-tertiary)",
+            }}
+          >
+            {rubricOpen ? "Hide Rubric" : "View Rubric"}
+          </span>
+        </button>
+        {rubricOpen && (
+          <>
+            <p
+              style={{
+                fontFamily: font.body,
+                fontSize: 13,
+                lineHeight: "19px",
+                fontWeight: 400,
+                color: "var(--color-text-tertiary)",
+                margin: 0,
+                marginTop: 12,
+                marginBottom: 16,
+              }}
+            >
+              Your submission will be evaluated against these criteria
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {mission.rubric.map((item, i) => (
+                <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span
+                    style={{
+                      fontFamily: font.mono,
+                      fontSize: 12,
+                      lineHeight: "22px",
+                      fontWeight: 500,
+                      color: "var(--color-text-tertiary)",
+                      flexShrink: 0,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {String(i + 1).padStart(2, "0")}.
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: "14.5px",
+                      lineHeight: "22px",
+                      fontWeight: 400,
+                      color: "var(--color-text-secondary)",
+                    }}
+                  >
+                    {item}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
     );
   }
@@ -391,13 +533,16 @@ export default function MissionDetailPage() {
               <input
                 type="url"
                 value={linkValue}
-                onChange={(e) => setLinkValue(e.target.value)}
+                onChange={(e) => {
+                  setLinkValue(e.target.value);
+                  if (linkError) setLinkError(null);
+                }}
                 placeholder="https://figma.com/file/..."
                 style={{
                   width: "100%",
                   height: 40,
                   backgroundColor: "var(--color-bg-surface-2)",
-                  border: "1px solid var(--color-border-strong)",
+                  border: `1px solid ${linkError ? "rgba(239,68,68,0.55)" : "var(--color-border-strong)"}`,
                   borderRadius: 10,
                   padding: "0 16px",
                   fontFamily: font.body,
@@ -410,12 +555,34 @@ export default function MissionDetailPage() {
                   transitionTimingFunction: "var(--ease-out-quart)",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-border-focus)";
+                  e.currentTarget.style.borderColor = linkError
+                    ? "rgba(239,68,68,0.55)"
+                    : "var(--color-border-focus)";
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                  const val = e.currentTarget.value;
+                  if (val.trim() && !validateUrl(val.trim())) {
+                    setLinkError("Please enter a valid URL");
+                    e.currentTarget.style.borderColor = "rgba(239,68,68,0.55)";
+                  } else {
+                    if (linkError && val.trim()) setLinkError(null);
+                    e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                  }
                 }}
               />
+              {linkError && (
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 12,
+                    color: "#F87171",
+                    margin: 0,
+                    marginTop: 6,
+                  }}
+                >
+                  {linkError}
+                </p>
+              )}
             </div>
 
             {/* File upload */}
@@ -671,28 +838,15 @@ export default function MissionDetailPage() {
             {/* Submit button */}
             <PrimaryButton
               fullWidth
-              disabled={!linkValue.trim() || isSubmitting}
+              disabled={isSubmitting}
               onClick={handleSubmit}
             >
-              {isSubmitting ? "Submitting…" : "Submit work"}
+              {isSubmitting
+                ? "Submitting…"
+                : mission.status === "needs-revision"
+                  ? "Resubmit"
+                  : "Submit deliverable"}
             </PrimaryButton>
-            {!linkValue.trim() && !isSubmitting && (
-              <p
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 11,
-                  lineHeight: "14px",
-                  fontWeight: 500,
-                  color: "var(--color-text-tertiary)",
-                  textAlign: "center",
-                  margin: 0,
-                  marginTop: 8,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                Add a link to enable submission
-              </p>
-            )}
           </div>
         </div>
       );
@@ -1046,6 +1200,52 @@ export default function MissionDetailPage() {
 
       {/* Bottom spacing */}
       <div style={{ height: 64 }} />
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            backgroundColor: "#181818",
+            border: "1px solid #333333",
+            borderRadius: 10,
+            padding: "14px 16px",
+            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            maxWidth: 360,
+          }}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle
+              style={{ width: 18, height: 18, color: "#22C55E", flexShrink: 0 }}
+            />
+          ) : toast.type === "error" ? (
+            <AlertCircle
+              style={{ width: 18, height: 18, color: "#EF4444", flexShrink: 0 }}
+            />
+          ) : (
+            <AlertTriangle
+              style={{ width: 18, height: 18, color: "#F59E0B", flexShrink: 0 }}
+            />
+          )}
+          <span
+            style={{
+              fontFamily: font.body,
+              fontSize: "14.5px",
+              lineHeight: "22px",
+              fontWeight: 500,
+              color: "#FFFFFF",
+            }}
+          >
+            {toast.message}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
