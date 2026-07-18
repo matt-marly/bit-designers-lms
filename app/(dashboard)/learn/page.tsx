@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { ChevronDown, ChevronRight, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle, ChevronDown, ChevronRight, Lock } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
 import { mockUnits, getTotalProgress } from "@/lib/mock-learn-data";
@@ -32,7 +32,9 @@ function getDefaultOpen(unit: MockUnit): boolean {
 }
 
 export default function LearnPage() {
+  const router = useRouter();
   const { total, complete } = getTotalProgress();
+  const allComplete = complete === total && total > 0;
   const [progress, setProgress] = useState(0);
   const [openUnits, setOpenUnits] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -165,7 +167,15 @@ export default function LearnPage() {
           <section key={unit.id}>
             {/* Unit header — clickable accordion toggle */}
             <div
+              role="button"
+              tabIndex={0}
               onClick={() => toggleUnit(unit.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleUnit(unit.id);
+                }
+              }}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -308,17 +318,36 @@ export default function LearnPage() {
                 )}
 
                 {/* Module cards */}
+                {unit.modules.length === 0 ? (
+                  <p
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: 14,
+                      lineHeight: "22px",
+                      color: "#737373",
+                      padding: "20px 0",
+                      margin: 0,
+                    }}
+                  >
+                    No modules in this unit yet.
+                  </p>
+                ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {unit.modules.map((mod) => {
                     const showGating = shouldShowGatingHint(mod.slug);
                     const isActive = mod.status === "in-progress";
                     return (
-                      <Link
-                        key={mod.slug}
-                        href={`/learn/${mod.slug}`}
-                        style={{ textDecoration: "none", display: "block" }}
-                      >
                         <div
+                          key={mod.slug}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => router.push(`/learn/${mod.slug}`)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              router.push(`/learn/${mod.slug}`);
+                            }
+                          }}
                           style={{
                             backgroundColor: "var(--color-bg-surface)",
                             border: isActive ? "1px solid #333333" : "1px solid var(--color-border-subtle)",
@@ -330,12 +359,12 @@ export default function LearnPage() {
                             gap: 16,
                             cursor: "pointer",
                             transitionProperty: "background-color, border-color",
-                            transitionDuration: "var(--duration-fast)",
-                            transitionTimingFunction: "var(--ease-out-quart)",
+                            transitionDuration: "120ms",
+                            transitionTimingFunction: "ease",
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
-                            e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                            e.currentTarget.style.backgroundColor = "#161616";
+                            e.currentTarget.style.borderColor = isActive ? "rgba(99,102,241,0.40)" : "#333333";
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
@@ -387,15 +416,43 @@ export default function LearnPage() {
                             />
                           </div>
                         </div>
-                      </Link>
                     );
                   })}
                 </div>
+                )}
               </div>
             </div>
           </section>
         );
       })}
+
+      {/* All modules complete banner */}
+      {allComplete && (
+        <div
+          style={{
+            backgroundColor: "rgba(34,197,94,0.06)",
+            border: "1px solid rgba(34,197,94,0.20)",
+            borderRadius: 12,
+            padding: "20px 24px",
+            marginTop: 24,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <CheckCircle style={{ width: 20, height: 20, color: "#22C55E", flexShrink: 0 }} />
+            <p
+              style={{
+                fontFamily: font.body,
+                fontSize: 14,
+                lineHeight: "22px",
+                color: "#FFFFFF",
+                margin: 0,
+              }}
+            >
+              You&apos;ve completed all modules in this track. Outstanding work.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Empty state hint when all units collapsed */}
       {!Object.values(openUnits).some(Boolean) && (
