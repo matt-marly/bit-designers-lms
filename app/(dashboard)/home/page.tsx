@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Megaphone, ChevronDown, CheckCircle2, Circle } from "lucide-react";
+import { Megaphone, ChevronDown, CheckCircle2, Circle, BookOpen } from "lucide-react";
 import { mockUnits } from "@/lib/mock-learn-data";
 import { mockSessions } from "@/lib/mock-live-data";
 
@@ -13,7 +13,13 @@ import { mockSessions } from "@/lib/mock-live-data";
 // ---------------------------------------------------------------------------
 const user = { firstName: "Amara" };
 const cohort = { name: "Cohort 1", track: "Design Lab", currentWeek: 3, totalWeeks: 12 };
-const nextModule = {
+const nextModule: {
+  label: string;
+  unit: string;
+  module: string;
+  lesson: string;
+  progressPercent: number;
+} | null = {
   label: "Bitcoin as a Design Medium",
   unit: "Unit 01",
   module: "Module 03",
@@ -26,12 +32,16 @@ const stats = {
   missionsPassed: 2,
   missionsPending: 1,
 };
-const currentMission = {
+const currentMission: {
+  title: string;
+  dueInDays: number;
+  status: "In Progress";
+} | null = {
   title: "Bitcoin UX Audit \u2014 Wallets",
   dueInDays: 3,
   status: "In Progress" as const,
 };
-const announcements = [
+const announcements: { title: string; time: string }[] = [
   { title: "Cohort 1 Kickoff Recording is now available", time: "2 hours ago" },
   { title: "Week 3 Mission Brief has been posted", time: "Yesterday" },
 ];
@@ -98,11 +108,27 @@ function formatSessionDate(session: { date: string; time: string; timezone: stri
 }
 
 // ---------------------------------------------------------------------------
+// Toast type
+// ---------------------------------------------------------------------------
+type ToastData = {
+  message: string;
+  type: "success" | "error" | "warning";
+};
+
+const toastDotColor: Record<ToastData["type"], string> = {
+  success: "#22C55E",
+  error: "#EF4444",
+  warning: "#F59E0B",
+};
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function HomePage() {
   const router = useRouter();
   const [progress, setProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [toast, setToast] = useState<ToastData | null>(null);
   const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     mockUnits.forEach((unit) => {
@@ -116,9 +142,22 @@ export default function HomePage() {
     setExpandedUnits((prev) => ({ ...prev, [unitId]: !prev[unitId] }));
   };
 
+  const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
+    setToast({ message, type });
+  }, []);
+
+  // Auto-dismiss toast after 3000ms
   useEffect(() => {
-    const timer = setTimeout(() => setProgress(nextModule.progressPercent), 100);
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    if (nextModule) {
+      const timer = setTimeout(() => setProgress(nextModule.progressPercent), 100);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const upcomingSession = useMemo(() => getUpcomingSession(), []);
@@ -133,6 +172,9 @@ export default function HomePage() {
     if (diffMins <= 15 && diffMins > -(upcomingSession.duration ?? 90)) return "live" as const;
     return "upcoming" as const;
   }, [upcomingSession]);
+
+  // Suppress unused var warning — showToast is exposed for future use
+  void showToast;
 
   return (
     <>
@@ -225,7 +267,7 @@ export default function HomePage() {
                 whiteSpace: "nowrap",
               }}
             >
-              {bannerState === "live" ? "Join now →" : "View details →"}
+              {bannerState === "live" ? "Join now \u2192" : "View details \u2192"}
             </span>
           </div>
         )}
@@ -384,136 +426,205 @@ export default function HomePage() {
                 UP NEXT
               </span>
 
-              <h2
-                style={{
-                  fontFamily: font.display,
-                  fontSize: 22,
-                  lineHeight: "28px",
-                  fontWeight: 600,
-                  color: "#FFFFFF",
-                  margin: 0,
-                }}
-              >
-                {nextModule.label}
-              </h2>
-
-              {/* Breadcrumb + BTC badge */}
-              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "#737373",
-                  }}
-                >
-                  {nextModule.unit} · {nextModule.module} · {nextModule.lesson}
-                </span>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 10,
-                    fontWeight: 500,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "#F7931A",
-                    backgroundColor: "rgba(247,147,26,0.12)",
-                    border: "1px solid rgba(247,147,26,0.25)",
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    marginLeft: 0,
-                  }}
-                >
-                  BTC
-                </span>
-              </div>
-
-              {/* Progress zone */}
-              <div style={{ marginTop: 16 }}>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "#737373",
-                    marginBottom: 6,
-                    display: "block",
-                  }}
-                >
-                  {nextModule.progressPercent}% OF MODULE COMPLETE
-                </span>
-                <div
-                  style={{
-                    height: 3,
-                    width: "100%",
-                    borderRadius: 999,
-                    backgroundColor: "#1C1C1C",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
+              {nextModule ? (
+                <>
+                  <h2
                     style={{
-                      width: `${progress}%`,
-                      transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
-                      height: 3,
-                      backgroundColor: "#6366F1",
-                      borderRadius: 999,
+                      fontFamily: font.display,
+                      fontSize: 22,
+                      lineHeight: "28px",
+                      fontWeight: 600,
+                      color: "#FFFFFF",
+                      margin: 0,
                     }}
-                  />
-                </div>
-              </div>
+                  >
+                    {nextModule.label}
+                  </h2>
 
-              {/* Buttons */}
-              <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                <button
-                  style={{
-                    height: 40,
-                    padding: "0 20px",
-                    borderRadius: 10,
-                    backgroundColor: "#6366F1",
-                    color: "#FFFFFF",
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#777AF5")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#6366F1")}
-                >
-                  Continue learning
-                </button>
-                <button
-                  style={{
-                    height: 40,
-                    padding: "0 20px",
-                    borderRadius: 10,
-                    backgroundColor: "transparent",
-                    color: "#FFFFFF",
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    border: "1px solid #333333",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.borderColor = "#333333";
-                  }}
-                >
-                  View syllabus
-                </button>
-              </div>
+                  {/* Breadcrumb + BTC badge */}
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 600,
+                        letterSpacing: "0.10em",
+                        textTransform: "uppercase",
+                        color: "#737373",
+                      }}
+                    >
+                      {nextModule.unit} · {nextModule.module} · {nextModule.lesson}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 10,
+                        fontWeight: 500,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "#F7931A",
+                        backgroundColor: "rgba(247,147,26,0.12)",
+                        border: "1px solid rgba(247,147,26,0.25)",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        marginLeft: 0,
+                      }}
+                    >
+                      BTC
+                    </span>
+                  </div>
+
+                  {/* Progress zone */}
+                  <div style={{ marginTop: 16 }}>
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 600,
+                        letterSpacing: "0.10em",
+                        textTransform: "uppercase",
+                        color: "#737373",
+                        marginBottom: 6,
+                        display: "block",
+                      }}
+                    >
+                      {nextModule.progressPercent}% OF MODULE COMPLETE
+                    </span>
+                    <div
+                      style={{
+                        height: 3,
+                        width: "100%",
+                        borderRadius: 999,
+                        backgroundColor: "#1C1C1C",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${progress}%`,
+                          transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
+                          height: 3,
+                          backgroundColor: "#6366F1",
+                          borderRadius: 999,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                    <button
+                      onClick={() => {
+                        setIsLoading(true);
+                        router.push("/learn/bitcoin-as-a-design-medium");
+                      }}
+                      disabled={isLoading}
+                      style={{
+                        height: 40,
+                        padding: "0 20px",
+                        borderRadius: 10,
+                        backgroundColor: "#6366F1",
+                        color: "#FFFFFF",
+                        fontFamily: font.body,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: "none",
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                        opacity: isLoading ? 0.6 : 1,
+                        pointerEvents: isLoading ? "none" as const : "auto" as const,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isLoading) e.currentTarget.style.backgroundColor = "#777AF5";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isLoading) e.currentTarget.style.backgroundColor = "#6366F1";
+                      }}
+                    >
+                      Continue learning
+                    </button>
+                    <button
+                      onClick={() => router.push("/learn")}
+                      style={{
+                        height: 40,
+                        padding: "0 20px",
+                        borderRadius: 10,
+                        backgroundColor: "transparent",
+                        color: "#FFFFFF",
+                        fontFamily: font.body,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: "1px solid #333333",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.borderColor = "#333333";
+                      }}
+                    >
+                      View syllabus
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                  <BookOpen style={{ width: 32, height: 32, color: "#737373" }} />
+                  <p
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: "#FFFFFF",
+                      margin: 0,
+                      marginTop: 12,
+                    }}
+                  >
+                    You're all caught up
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: 14,
+                      color: "#737373",
+                      margin: 0,
+                      marginTop: 6,
+                    }}
+                  >
+                    No modules in progress. Continue from where you left off.
+                  </p>
+                  <button
+                    onClick={() => router.push("/learn")}
+                    style={{
+                      height: 40,
+                      padding: "0 20px",
+                      borderRadius: 10,
+                      backgroundColor: "transparent",
+                      color: "#FFFFFF",
+                      fontFamily: font.body,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      border: "1px solid #333333",
+                      cursor: "pointer",
+                      marginTop: 16,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.borderColor = "#333333";
+                    }}
+                  >
+                    Browse modules
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Card B — CURRENT MISSION */}
@@ -541,97 +652,130 @@ export default function HomePage() {
                 CURRENT MISSION
               </span>
 
-              <h2
-                style={{
-                  fontFamily: font.display,
-                  fontSize: 20,
-                  lineHeight: "26px",
-                  fontWeight: 600,
-                  color: "#FFFFFF",
-                  margin: 0,
-                }}
-              >
-                {currentMission.title}
-              </h2>
+              {currentMission ? (
+                <>
+                  <h2
+                    style={{
+                      fontFamily: font.display,
+                      fontSize: 20,
+                      lineHeight: "26px",
+                      fontWeight: 600,
+                      color: "#FFFFFF",
+                      margin: 0,
+                    }}
+                  >
+                    {currentMission.title}
+                  </h2>
 
-              {/* Status row */}
-              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "#F59E0B",
-                  }}
-                >
-                  DUE IN {currentMission.dueInDays} DAYS
-                </span>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "#A5B4FC",
-                    backgroundColor: "rgba(99,102,241,0.12)",
-                    border: "1px solid rgba(99,102,241,0.35)",
-                    padding: "3px 8px",
-                    borderRadius: 999,
-                  }}
-                >
-                  IN PROGRESS
-                </span>
-              </div>
+                  {/* Status row */}
+                  <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 11,
+                        lineHeight: "14px",
+                        fontWeight: 600,
+                        letterSpacing: "0.10em",
+                        textTransform: "uppercase",
+                        color: "#F59E0B",
+                      }}
+                    >
+                      DUE IN {currentMission.dueInDays} DAYS
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: font.mono,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        letterSpacing: "0.10em",
+                        textTransform: "uppercase",
+                        color: "#A5B4FC",
+                        backgroundColor: "rgba(99,102,241,0.12)",
+                        border: "1px solid rgba(99,102,241,0.35)",
+                        padding: "3px 8px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      IN PROGRESS
+                    </span>
+                  </div>
 
-              {/* Buttons */}
-              <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                <button
-                  style={{
-                    height: 40,
-                    padding: "0 20px",
-                    borderRadius: 10,
-                    backgroundColor: "#6366F1",
-                    color: "#FFFFFF",
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#777AF5")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#6366F1")}
-                >
-                  Submit deliverable
-                </button>
-                <button
-                  style={{
-                    height: 40,
-                    padding: "0 20px",
-                    borderRadius: 10,
-                    backgroundColor: "transparent",
-                    color: "#FFFFFF",
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    border: "1px solid #333333",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.borderColor = "#333333";
-                  }}
-                >
-                  Mission brief
-                </button>
-              </div>
+                  {/* Buttons */}
+                  <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                    <button
+                      onClick={() => router.push("/missions/bitcoin-ux-audit-wallets")}
+                      style={{
+                        height: 40,
+                        padding: "0 20px",
+                        borderRadius: 10,
+                        backgroundColor: "#6366F1",
+                        color: "#FFFFFF",
+                        fontFamily: font.body,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#777AF5")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#6366F1")}
+                    >
+                      Submit deliverable
+                    </button>
+                    <button
+                      onClick={() => router.push("/missions/bitcoin-ux-audit-wallets")}
+                      style={{
+                        height: 40,
+                        padding: "0 20px",
+                        borderRadius: 10,
+                        backgroundColor: "transparent",
+                        color: "#FFFFFF",
+                        fontFamily: font.body,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: "1px solid #333333",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.borderColor = "#333333";
+                      }}
+                    >
+                      Mission brief
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                  <CheckCircle2 style={{ width: 32, height: 32, color: "#22C55E" }} />
+                  <p
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: "#FFFFFF",
+                      margin: 0,
+                      marginTop: 12,
+                    }}
+                  >
+                    No active missions
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: font.body,
+                      fontSize: 14,
+                      color: "#737373",
+                      margin: 0,
+                      marginTop: 6,
+                    }}
+                  >
+                    Check back when your next mission is assigned.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -706,7 +850,13 @@ export default function HomePage() {
                         onMouseEnter={(e) => (e.currentTarget.style.background = "#1C1C1C")}
                         onMouseLeave={(e) => (e.currentTarget.style.background = "#161616")}
                       >
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push("/learn");
+                          }}
+                          style={{ display: "flex", flexDirection: "column", gap: 2, cursor: "pointer" }}
+                        >
                           <span
                             style={{
                               fontFamily: font.mono,
@@ -902,65 +1052,120 @@ export default function HomePage() {
           </span>
 
           <div style={{ marginTop: 12 }}>
-            {announcements.map((a, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  paddingTop: 12,
-                  paddingBottom: 12,
-                  borderBottom:
-                    i < announcements.length - 1
-                      ? "1px solid var(--color-border-subtle)"
-                      : "none",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <Megaphone
-                    style={{
-                      width: 16,
-                      height: 16,
-                      color: "var(--color-text-tertiary)",
-                      marginTop: 3,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <p
-                    style={{
-                      fontFamily: font.body,
-                      fontSize: "14.5px",
-                      lineHeight: "22px",
-                      fontWeight: 400,
-                      color: "var(--color-text-primary)",
-                      margin: 0,
-                    }}
-                  >
-                    {a.title}
-                  </p>
-                </div>
-                <span
+            {announcements.length > 0 ? (
+              announcements.map((a, i) => (
+                <div
+                  key={i}
                   style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "var(--color-text-tertiary)",
-                    flexShrink: 0,
-                    fontVariantNumeric: "tabular-nums",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    paddingTop: 12,
+                    paddingBottom: 12,
+                    borderBottom:
+                      i < announcements.length - 1
+                        ? "1px solid var(--color-border-subtle)"
+                        : "none",
                   }}
                 >
-                  {a.time}
-                </span>
-              </div>
-            ))}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <Megaphone
+                      style={{
+                        width: 16,
+                        height: 16,
+                        color: "var(--color-text-tertiary)",
+                        marginTop: 3,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <p
+                      style={{
+                        fontFamily: font.body,
+                        fontSize: "14.5px",
+                        lineHeight: "22px",
+                        fontWeight: 400,
+                        color: "var(--color-text-primary)",
+                        margin: 0,
+                      }}
+                    >
+                      {a.title}
+                    </p>
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: font.mono,
+                      fontSize: 11,
+                      lineHeight: "14px",
+                      fontWeight: 500,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--color-text-tertiary)",
+                      flexShrink: 0,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {a.time}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 14,
+                  color: "#737373",
+                  margin: 0,
+                  marginTop: 4,
+                }}
+              >
+                No announcements yet.
+              </p>
+            )}
           </div>
         </motion.section>
       </div>
+
+      {/* ── Toast notification ── */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 50,
+            background: "#1C1C1C",
+            border: "1px solid #333333",
+            borderRadius: 10,
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 280,
+            maxWidth: 360,
+            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              backgroundColor: toastDotColor[toast.type],
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: font.body,
+              fontSize: 14,
+              color: "#FFFFFF",
+            }}
+          >
+            {toast.message}
+          </span>
+        </div>
+      )}
     </>
   );
 }
