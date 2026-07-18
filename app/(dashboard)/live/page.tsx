@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, User, BookOpen, PlayCircle, X, CalendarPlus } from "lucide-react";
+import { Calendar, User, BookOpen, PlayCircle, X, CalendarPlus, CheckCircle, AlertCircle } from "lucide-react";
 import { SectionLabel, PrimaryButton, OutlineButton } from "@/components/ui/custom";
 import { mockSessions } from "@/lib/mock-live-data";
 import type { LiveSession } from "@/lib/mock-live-data";
@@ -51,7 +51,7 @@ function formatRecordingDate(dateStr: string): string {
 type CountdownResult =
   | null
   | "starting-soon"
-  | { days: number; hours: number; minutes: number };
+  | { days: number; hours: number; minutes: number; seconds: number };
 
 function getCountdown(dateStr: string, timeStr: string): CountdownResult {
   const target = new Date(dateStr + "T" + timeStr + ":00").getTime();
@@ -60,15 +60,16 @@ function getCountdown(dateStr: string, timeStr: string): CountdownResult {
 
   if (diff <= 0) return null;
 
-  // Within 2 hours = "starting soon"
+  // Within 15 minutes = "starting soon"
   const totalMin = Math.floor(diff / 60000);
-  if (totalMin <= 120) return "starting-soon";
+  if (totalMin <= 15) return "starting-soon";
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
   const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
 
-  return { days, hours, minutes };
+  return { days, hours, minutes, seconds };
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +222,7 @@ function CountdownTimer({ session }: { session: LiveSession }) {
         <CountdownBlock value={cd.days} label="DAYS" />
         <CountdownBlock value={cd.hours} label="HRS" />
         <CountdownBlock value={cd.minutes} label="MIN" />
+        <CountdownBlock value={cd.seconds} label="SEC" />
       </div>
     </div>
   );
@@ -303,7 +305,13 @@ function TabButton({
 // Upcoming Session Card (no StatusDot — tab communicates context)
 // ---------------------------------------------------------------------------
 
-function UpcomingCard({ session }: { session: LiveSession }) {
+function UpcomingCard({
+  session,
+  onToast,
+}: {
+  session: LiveSession;
+  onToast: (message: string, type: "success" | "error") => void;
+}) {
   const isLive = session.status === "live";
 
   return (
@@ -427,14 +435,21 @@ function UpcomingCard({ session }: { session: LiveSession }) {
       >
         <PrimaryButton
           onClick={() => {
-            if (session.joinUrl) window.open(session.joinUrl, "_blank", "noopener");
+            if (session.joinUrl) {
+              window.open(session.joinUrl, "_blank", "noopener");
+            } else {
+              onToast("Could not open meeting link", "error");
+            }
           }}
         >
-          {isLive ? "Join Now" : "Join Session"}
+          {isLive ? "Join now \u2192" : "Join Session"}
         </PrimaryButton>
         <OutlineButton
           icon={CalendarPlus}
-          onClick={() => generateICS(session)}
+          onClick={() => {
+            generateICS(session);
+            onToast(".ics downloaded", "success");
+          }}
         >
           Add to Calendar
         </OutlineButton>
@@ -782,8 +797,23 @@ function RecordingModal({
 export default function LivePage() {
   const [activeTab, setActiveTab] = useState<TabId>("upcoming");
   const [modalSession, setModalSession] = useState<LiveSession | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const handleCloseModal = useCallback(() => setModalSession(null), []);
+
+  const showToast = useCallback((message: string, type: "success" | "error") => {
+    setToast({ message, type });
+  }, []);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const upcoming = mockSessions.filter(
     (s) => s.status === "upcoming" || s.status === "live"
@@ -867,26 +897,138 @@ export default function LivePage() {
         {/* ── TAB CONTENT ── */}
         <div style={{ marginTop: 32 }}>
           {activeTab === "upcoming" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {upcoming.map((session) => (
-                <UpcomingCard key={session.slug} session={session} />
-              ))}
-            </div>
+            upcoming.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {upcoming.map((session) => (
+                  <UpcomingCard key={session.slug} session={session} onToast={showToast} />
+                ))}
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "48px 24px",
+                  maxWidth: 360,
+                  margin: "0 auto",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: "50%",
+                    backgroundColor: "var(--color-bg-surface-2)",
+                    border: "1px solid var(--color-border-subtle)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Calendar style={{ width: 32, height: 32, color: "var(--color-text-tertiary)" }} />
+                </div>
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 16,
+                    lineHeight: "22px",
+                    fontWeight: 500,
+                    color: "var(--color-text-primary)",
+                    margin: 0,
+                    marginTop: 20,
+                  }}
+                >
+                  No sessions scheduled
+                </p>
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 14,
+                    lineHeight: "22px",
+                    fontWeight: 400,
+                    color: "var(--color-text-tertiary)",
+                    margin: 0,
+                    marginTop: 8,
+                  }}
+                >
+                  Check back soon for upcoming live sessions.
+                </p>
+              </div>
+            )
           )}
 
           {activeTab === "recordings" && (
-            <div
-              className="grid grid-cols-1 md:grid-cols-2"
-              style={{ gap: 16 }}
-            >
-              {recordings.map((session) => (
-                <RecordingCard
-                  key={session.slug}
-                  session={session}
-                  onWatch={setModalSession}
-                />
-              ))}
-            </div>
+            recordings.length > 0 ? (
+              <div
+                className="grid grid-cols-1 md:grid-cols-2"
+                style={{ gap: 16 }}
+              >
+                {recordings.map((session) => (
+                  <RecordingCard
+                    key={session.slug}
+                    session={session}
+                    onWatch={setModalSession}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "48px 24px",
+                  maxWidth: 360,
+                  margin: "0 auto",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: "50%",
+                    backgroundColor: "var(--color-bg-surface-2)",
+                    border: "1px solid var(--color-border-subtle)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <PlayCircle style={{ width: 32, height: 32, color: "var(--color-text-tertiary)" }} />
+                </div>
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 16,
+                    lineHeight: "22px",
+                    fontWeight: 500,
+                    color: "var(--color-text-primary)",
+                    margin: 0,
+                    marginTop: 20,
+                  }}
+                >
+                  No recordings yet
+                </p>
+                <p
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 14,
+                    lineHeight: "22px",
+                    fontWeight: 400,
+                    color: "var(--color-text-tertiary)",
+                    margin: 0,
+                    marginTop: 8,
+                  }}
+                >
+                  Recordings will appear here after sessions end.
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -894,6 +1036,49 @@ export default function LivePage() {
       {/* Recording Modal */}
       {modalSession && (
         <RecordingModal session={modalSession} onClose={handleCloseModal} />
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          role={toast.type === "error" ? "alert" : "status"}
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            backgroundColor: "#181818",
+            border: "1px solid #333333",
+            borderRadius: 10,
+            padding: "14px 16px",
+            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            maxWidth: 360,
+          }}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle
+              style={{ width: 18, height: 18, color: "#22C55E", flexShrink: 0 }}
+            />
+          ) : (
+            <AlertCircle
+              style={{ width: 18, height: 18, color: "#EF4444", flexShrink: 0 }}
+            />
+          )}
+          <span
+            style={{
+              fontFamily: font.body,
+              fontSize: "14.5px",
+              lineHeight: "22px",
+              fontWeight: 500,
+              color: "#FFFFFF",
+            }}
+          >
+            {toast.message}
+          </span>
+        </div>
       )}
     </>
   );
