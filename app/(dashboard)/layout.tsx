@@ -33,6 +33,8 @@ export default function DashboardLayout({
       <MobileNav />
 
       <main
+        role="main"
+        aria-label="Main content"
         className="dashboard-main min-h-screen pb-20 md:pb-0 md:ml-[260px]"
         style={{ flex: 1, overflowY: "auto" }}
       >

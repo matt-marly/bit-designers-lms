@@ -7,6 +7,7 @@ interface ButtonProps {
   fullWidth?: boolean;
   size?: "default" | "small" | "large";
   disabled?: boolean;
+  "aria-label"?: string;
 }
 
 const sizeMap = {
@@ -15,12 +16,13 @@ const sizeMap = {
   large: { height: 48, padding: "0 20px", iconSize: 18 },
 } as const;
 
-export function PrimaryButton({ children, icon: Icon, onClick, fullWidth, size = "default", disabled }: ButtonProps) {
+export function PrimaryButton({ children, icon: Icon, onClick, fullWidth, size = "default", disabled, "aria-label": ariaLabel }: ButtonProps) {
   const s = sizeMap[size];
   return (
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className="inline-flex items-center justify-center transition-colors"
       style={{
         height: s.height,
@@ -45,18 +47,19 @@ export function PrimaryButton({ children, icon: Icon, onClick, fullWidth, size =
       onMouseDown={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "var(--color-indigo-active)"; }}
       onMouseUp={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "var(--color-indigo-hover)"; }}
     >
-      {Icon && <Icon style={{ width: s.iconSize, height: s.iconSize }} />}
+      {Icon && <Icon style={{ width: s.iconSize, height: s.iconSize }} aria-hidden="true" />}
       {children}
     </button>
   );
 }
 
-export function OutlineButton({ children, icon: Icon, onClick, fullWidth, size = "default", disabled }: ButtonProps) {
+export function OutlineButton({ children, icon: Icon, onClick, fullWidth, size = "default", disabled, "aria-label": ariaLabel }: ButtonProps) {
   const s = sizeMap[size];
   return (
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className="inline-flex items-center justify-center transition-colors"
       style={{
         height: s.height,
@@ -91,7 +94,7 @@ export function OutlineButton({ children, icon: Icon, onClick, fullWidth, size =
       onMouseDown={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
       onMouseUp={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"; }}
     >
-      {Icon && <Icon style={{ width: s.iconSize, height: s.iconSize }} />}
+      {Icon && <Icon style={{ width: s.iconSize, height: s.iconSize }} aria-hidden="true" />}
       {children}
     </button>
   );
