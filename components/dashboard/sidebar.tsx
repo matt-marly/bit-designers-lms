@@ -40,6 +40,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
 
   return (
     <aside
+      aria-label="Sidebar"
       className="fixed inset-y-0 left-0 z-30 hidden md:flex md:flex-col"
       style={{
         width: 260,
@@ -60,7 +61,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
         </Link>
       </div>
 
-      <nav style={{ flex: 1 }}>
+      <nav role="navigation" aria-label="Main navigation" style={{ flex: 1 }}>
         <LayoutGroup>
           {navGroups.map((group) => (
             <div key={group.label}>
@@ -113,6 +114,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
                       )}
                       <Link
                         href={item.href}
+                        aria-current={isActive ? "page" : undefined}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -148,7 +150,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
                           }
                         }}
                       >
-                        <Icon style={{ width: 18, height: 18, flexShrink: 0 }} />
+                        <Icon style={{ width: 18, height: 18, flexShrink: 0 }} aria-hidden="true" />
                         {item.label}
                       </Link>
                     </li>
@@ -163,6 +165,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
       {/* Search trigger */}
       <button
         onClick={onSearchClick}
+        aria-label="Search (\u2318K)"
         style={{
           display: "flex",
           alignItems: "center",
@@ -188,6 +191,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Search
             style={{ width: 14, height: 14, color: "var(--color-text-tertiary)" }}
+            aria-hidden="true"
           />
           <span
             style={{
@@ -293,6 +297,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
       {/* Admin link — TODO: restrict to admin/mentor role */}
       <button
         onClick={() => window.open("/admin", "_blank")}
+        aria-label="Admin dashboard"
         style={{
           padding: "8px 12px",
           marginTop: 4,
@@ -313,6 +318,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
       >
         <ExternalLink
           style={{ width: 11, height: 11, color: "var(--color-text-tertiary)" }}
+          aria-hidden="true"
         />
         <span
           style={{
