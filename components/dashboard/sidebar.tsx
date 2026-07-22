@@ -222,58 +222,72 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
         style={{
           padding: 16,
           borderTop: "1px solid var(--color-border-subtle)",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
         }}
       >
-        <div
+        <Link
+          href="/profile"
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: 999,
-            backgroundColor: "var(--color-bg-surface-3)",
-            border: "1px solid var(--color-border-subtle)",
-            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "6px 8px",
+            margin: "-6px -8px",
+            borderRadius: 8,
+            cursor: "pointer",
+            textDecoration: "none",
+            transition: "background 120ms ease",
           }}
-        />
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <p
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#161616")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+        >
+          <div
             style={{
-              margin: 0,
-              fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
-              fontSize: "14.5px",
-              fontWeight: 500,
-              color: "var(--color-text-primary)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              width: 32,
+              height: 32,
+              borderRadius: 999,
+              backgroundColor: "var(--color-bg-surface-3)",
+              border: "1px solid var(--color-border-subtle)",
+              flexShrink: 0,
             }}
-          >
-            Amara
-          </p>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              height: 20,
-              borderRadius: 6,
-              backgroundColor: "var(--color-indigo-subtle)",
-              border: "1px solid var(--color-indigo-border)",
-              padding: "0 8px",
-              fontFamily: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
-              fontSize: 10,
-              fontWeight: 500,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--color-indigo-text)",
-              lineHeight: "12px",
-              marginTop: 2,
-            }}
-          >
-            Learner
-          </span>
-        </div>
+          />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
+                fontSize: "14.5px",
+                fontWeight: 500,
+                color: "var(--color-text-primary)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Amara
+            </p>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 20,
+                borderRadius: 6,
+                backgroundColor: "var(--color-indigo-subtle)",
+                border: "1px solid var(--color-indigo-border)",
+                padding: "0 8px",
+                fontFamily: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--color-indigo-text)",
+                lineHeight: "12px",
+                marginTop: 2,
+              }}
+            >
+              Learner
+            </span>
+          </div>
+        </Link>
       </div>
 
       {/* Admin link — TODO: restrict to admin/mentor role */}
