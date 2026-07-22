@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, LayoutGroup } from "framer-motion";
 import {
   Home,
@@ -13,7 +13,9 @@ import {
   Users,
   Search,
   ExternalLink,
+  LogOut,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const navGroups = [
   {
@@ -37,6 +39,13 @@ const navGroups = [
 
 export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   return (
     <aside
@@ -330,6 +339,31 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
         >
           Admin
         </span>
+      </button>
+
+      {/* Log out */}
+      <button
+        onClick={handleLogout}
+        style={{
+          padding: "8px 0",
+          marginLeft: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+          background: "none",
+          border: "none",
+          fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
+          fontSize: 13,
+          fontWeight: 400,
+          color: "#737373",
+          transition: "color 120ms ease",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "#F87171")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#737373")}
+      >
+        <LogOut style={{ width: 14, height: 14 }} aria-hidden="true" />
+        Log out
       </button>
     </aside>
   );

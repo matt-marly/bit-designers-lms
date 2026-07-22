@@ -1,5 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+
+function getServiceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function POST(request: NextRequest) {
   const { code } = await request.json()
@@ -11,7 +18,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const supabase = await createClient()
+  const supabase = getServiceClient()
 
   const { data: invite, error } = await supabase
     .from('invites')
@@ -58,7 +65,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const { inviteId } = await request.json()
-  const supabase = await createClient()
+  const supabase = getServiceClient()
 
   const { data: invite } = await supabase
     .from('invites')
