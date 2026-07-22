@@ -18,7 +18,7 @@ export default function SignupPage() {
   const inviteCode = params.inviteCode as string;
 
   const [status, setStatus] = useState<"validating" | "invalid" | "valid">("validating");
-  const [inviteData, setInviteData] = useState<{ track: string; cohort: string } | null>(null);
+  const [inviteData, setInviteData] = useState<{ track: string; cohort: string; inviteId: string; cohortId: string; trackRaw: string } | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,48 +26,87 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (inviteCode.startsWith("BDA-")) {
-      setStatus("valid");
-      setInviteData({
-        track: inviteCode.includes("-DL-") ? "Design Lab" : "Open Source Lab",
-        cohort: "Cohort 01",
-      });
-    } else {
-      setStatus("invalid");
+    const validateInvite = async () => {
+      try {
+        const res = await fetch('/api/invites/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: params.inviteCode })
+        })
+        const data = await res.json()
+
+        if (!data.valid) {
+          setStatus('invalid')
+          return
+        }
+
+        setInviteData({
+          track: data.track === 'design_lab' ? 'Design Lab' : 'Open Source Lab',
+          cohort: data.cohortName,
+          inviteId: data.inviteId,
+          cohortId: data.cohortId,
+          trackRaw: data.track
+        })
+        setStatus('valid')
+      } catch {
+        setStatus('invalid')
+      }
     }
-  }, [inviteCode]);
+    validateInvite()
+  }, [params.inviteCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+    e.preventDefault()
+    setError('')
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
+      setError('Password must be at least 8 characters')
+      return
     }
 
-    setLoading(true);
-    const supabase = createClient();
+    setLoading(true)
+    const supabase = createClient()
 
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
-          track: inviteData?.track,
-          cohort: inviteData?.cohort,
-        },
-      },
-    });
+          track: inviteData?.trackRaw,
+        }
+      }
+    })
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
+    if (signUpError) {
+      setError(signUpError.message)
+      setLoading(false)
+      return
     }
 
-    router.push("/home");
+    if (authData.user) {
+      // Update profile with track
+      await supabase
+        .from('profiles')
+        .update({ track: inviteData?.trackRaw })
+        .eq('id', authData.user.id)
+
+      // Create enrollment
+      await supabase.from('enrollments').insert({
+        user_id: authData.user.id,
+        cohort_id: inviteData?.cohortId,
+        role_in_cohort: 'learner'
+      })
+
+      // Increment invite use count via API
+      await fetch('/api/invites/validate', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteId: inviteData?.inviteId })
+      })
+    }
+
+    router.push('/home')
   };
 
   return (
