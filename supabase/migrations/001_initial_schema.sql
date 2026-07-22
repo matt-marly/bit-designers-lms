@@ -336,7 +336,7 @@ CREATE POLICY "Admins can manage invites"
 
 -- AUTO-CREATE PROFILE ON SIGNUP
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $
+RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.profiles (id, full_name, role)
   VALUES (
@@ -346,7 +346,7 @@ BEGIN
   );
   RETURN new;
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
