@@ -442,23 +442,6 @@ export default function HomePage() {
                     >
                       {nextModule.unit} · {nextModule.module} · {nextModule.lesson}
                     </span>
-                    <span
-                      style={{
-                        fontFamily: font.mono,
-                        fontSize: 10,
-                        fontWeight: 500,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "#F7931A",
-                        backgroundColor: "rgba(247,147,26,0.12)",
-                        border: "1px solid rgba(247,147,26,0.25)",
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        marginLeft: 0,
-                      }}
-                    >
-                      BTC
-                    </span>
                   </div>
 
                   {/* Progress zone */}
