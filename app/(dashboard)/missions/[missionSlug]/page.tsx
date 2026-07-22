@@ -986,9 +986,19 @@ export default function MissionDetailPage() {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+    <div className="mission-detail" style={{ maxWidth: 760, margin: "0 auto" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .mission-detail { padding: 0 16px !important; }
+          .mission-detail .mission-title { font-size: 24px !important; line-height: 30px !important; }
+          .mission-detail .mission-submit-btn { width: 100%; }
+          .mission-detail .mission-nav-row { flex-direction: column !important; align-items: flex-start !important; }
+          .mission-detail .mission-nav-right { flex-wrap: wrap; }
+        }
+      `}</style>
       {/* 1. BACK LINK + MISSION SEQUENCE */}
       <div
+        className="mission-nav-row"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -1002,7 +1012,7 @@ export default function MissionDetailPage() {
           ← Missions
         </HoverLink>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div className="mission-nav-right" style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span
             style={{
               fontFamily: font.mono,
@@ -1058,6 +1068,7 @@ export default function MissionDetailPage() {
 
         {/* Title */}
         <h1
+          className="mission-title"
           style={{
             fontFamily: font.display,
             fontSize: 32,
