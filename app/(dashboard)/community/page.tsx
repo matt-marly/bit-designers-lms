@@ -35,7 +35,7 @@ const channels = [
     name: "Discord",
     description:
       "The main hub. Announcements, help, weekly check-ins, and cohort discussion.",
-    url: "https://discord.gg/placeholder",
+    url: "https://discord.gg/bitcoindesign",
     iconBg: "#5865F2",
     iconBorder: false,
     icon: "discord",
@@ -45,7 +45,7 @@ const channels = [
     name: "Twitter / X",
     description:
       "Follow for Bitcoin design content, program updates, and community highlights.",
-    url: "https://twitter.com/bitdesignersafrica",
+    url: "https://twitter.com/bitcoindesign",
     iconBg: "#000000",
     iconBorder: true,
     icon: "twitter",
@@ -55,7 +55,7 @@ const channels = [
     name: "WhatsApp",
     description:
       "Cohort group chat for quick questions, wins, and real-time support.",
-    url: "https://chat.whatsapp.com/placeholder",
+    url: "https://chat.whatsapp.com/bitcoindesigners",
     iconBg: "#25D366",
     iconBorder: false,
     icon: "whatsapp",
@@ -65,12 +65,21 @@ const channels = [
     name: "LinkedIn",
     description:
       "Connect professionally. Follow the org page for public updates and opportunities.",
-    url: "https://linkedin.com/company/bitdesignersafrica",
+    url: "https://linkedin.com/company/bitcoindesigners",
     iconBg: "#0A66C2",
     iconBorder: false,
     icon: "linkedin",
   },
 ] as const;
+
+/* ─── Cohort data (null = no cohort available) ─── */
+
+const cohort = {
+  name: "Bitcoin for Designers — Cohort 01",
+  period: "July 2025 — September 2025",
+  members: "7 designers · Nigeria & Ghana",
+  summary: "Cohort 01 · 7 members · Design Lab & Open Source Lab",
+};
 
 /* ─── Channel icon renderer ─── */
 
@@ -127,7 +136,7 @@ function ChannelCard({ channel }: { channel: (typeof channels)[number] }) {
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = "var(--color-border-strong)";
-        e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
+        e.currentTarget.style.backgroundColor = "#161616";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = "var(--color-border-subtle)";
@@ -268,119 +277,121 @@ export default function CommunityPage() {
       </div>
 
       {/* ── Cohort Section ── */}
-      <div style={{ marginTop: 48 }}>
-        <SectionLabel>YOUR COHORT</SectionLabel>
-        <p
-          style={{
-            fontFamily: font.body,
-            fontSize: 13,
-            lineHeight: "19px",
-            fontWeight: 400,
-            color: "var(--color-text-tertiary)",
-            margin: 0,
-            marginTop: 6,
-            marginBottom: 20,
-          }}
-        >
-          Cohort 01 · 7 members · Design Lab & Open Source Lab
-        </p>
-
-        {/* Cohort card */}
-        <div
-          style={{
-            backgroundColor: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-subtle)",
-            borderRadius: 14,
-            padding: 20,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 16,
-          }}
-        >
-          {/* Left column */}
-          <div>
-            <p
-              style={{
-                fontFamily: font.display,
-                fontSize: 15,
-                lineHeight: "21px",
-                fontWeight: 600,
-                color: "var(--color-text-primary)",
-                margin: 0,
-              }}
-            >
-              Bitcoin for Designers — Cohort 01
-            </p>
-            <p
-              style={{
-                fontFamily: font.mono,
-                fontSize: 12,
-                lineHeight: "16px",
-                fontWeight: 500,
-                color: "var(--color-text-tertiary)",
-                margin: 0,
-                marginTop: 4,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              July 2025 — September 2025
-            </p>
-            <p
-              style={{
-                fontFamily: font.body,
-                fontSize: 13,
-                lineHeight: "19px",
-                fontWeight: 400,
-                color: "var(--color-text-secondary)",
-                margin: 0,
-                marginTop: 4,
-              }}
-            >
-              7 designers · Nigeria & Ghana
-            </p>
-          </div>
-
-          {/* Right button */}
-          <button
-            onClick={() => window.open("https://discord.gg/placeholder", "_blank")}
-            className="inline-flex items-center justify-center"
+      {cohort && (
+        <div style={{ marginTop: 48 }}>
+          <SectionLabel>YOUR COHORT</SectionLabel>
+          <p
             style={{
-              height: 36,
-              padding: "0 14px",
-              borderRadius: 10,
-              backgroundColor: "transparent",
-              color: "var(--color-text-primary)",
-              border: "1px solid var(--color-border-strong)",
               fontFamily: font.body,
               fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              transitionProperty: "background-color, border-color",
-              transitionDuration: "var(--duration-fast)",
-              transitionTimingFunction: "var(--ease-out-quart)",
-              whiteSpace: "nowrap",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.borderColor = "var(--color-border-strong)";
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+              lineHeight: "19px",
+              fontWeight: 400,
+              color: "var(--color-text-tertiary)",
+              margin: 0,
+              marginTop: 6,
+              marginBottom: 20,
             }}
           >
-            Meet on Discord
-          </button>
+            {cohort.summary}
+          </p>
+
+          {/* Cohort card */}
+          <div
+            style={{
+              backgroundColor: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border-subtle)",
+              borderRadius: 14,
+              padding: 20,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 16,
+            }}
+          >
+            {/* Left column */}
+            <div>
+              <p
+                style={{
+                  fontFamily: font.display,
+                  fontSize: 15,
+                  lineHeight: "21px",
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                  margin: 0,
+                }}
+              >
+                {cohort.name}
+              </p>
+              <p
+                style={{
+                  fontFamily: font.mono,
+                  fontSize: 12,
+                  lineHeight: "16px",
+                  fontWeight: 500,
+                  color: "var(--color-text-tertiary)",
+                  margin: 0,
+                  marginTop: 4,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {cohort.period}
+              </p>
+              <p
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 13,
+                  lineHeight: "19px",
+                  fontWeight: 400,
+                  color: "var(--color-text-secondary)",
+                  margin: 0,
+                  marginTop: 4,
+                }}
+              >
+                {cohort.members}
+              </p>
+            </div>
+
+            {/* Right button */}
+            <button
+              onClick={() => window.open("https://discord.gg/bitcoindesign", "_blank")}
+              className="inline-flex items-center justify-center"
+              style={{
+                height: 36,
+                padding: "0 14px",
+                borderRadius: 10,
+                backgroundColor: "transparent",
+                color: "var(--color-text-primary)",
+                border: "1px solid var(--color-border-strong)",
+                fontFamily: font.body,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+                transitionProperty: "background-color, border-color",
+                transitionDuration: "var(--duration-fast)",
+                transitionTimingFunction: "var(--ease-out-quart)",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.borderColor = "var(--color-border-strong)";
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+              }}
+            >
+              Meet on Discord
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Footer note ── */}
       <p
