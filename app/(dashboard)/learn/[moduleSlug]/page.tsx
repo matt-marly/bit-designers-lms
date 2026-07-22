@@ -737,7 +737,22 @@ export default function ModulePage() {
     >
       <style>{`
         .video-cap { max-height: 360px; }
-        @media (max-width: 768px) { .video-cap { max-height: 220px; } }
+        @media (max-width: 768px) {
+          .video-cap { max-height: 220px; }
+          .lesson-viewport { flex-direction: column !important; height: auto !important; overflow: visible !important; margin: 0 !important; }
+          .lesson-right-col { width: 100% !important; border-left: none !important; border-top: 1px solid var(--color-border-subtle); padding-top: 20px; }
+          .lesson-right-col .lesson-panel-toggle { display: none !important; }
+          .lesson-scroll-area { padding-left: 16px !important; padding-right: 16px !important; }
+          .lesson-reopen-btn { display: none !important; }
+          .lesson-bottom-nav { padding: 12px 16px !important; }
+          .lesson-bottom-nav > div { grid-template-columns: 1fr !important; gap: 10px !important; }
+          .lesson-bottom-nav > div > * { text-align: center; justify-content: center; }
+          .lesson-tab-bar { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; padding-left: 16px !important; padding-right: 16px !important; }
+          .lesson-tab-bar::-webkit-scrollbar { display: none; }
+          .lesson-tab-bar > div { white-space: nowrap; flex-wrap: nowrap; }
+          .lesson-back-link { padding-left: 16px !important; padding-right: 16px !important; }
+          .lesson-video-wrap { padding-left: 16px !important; padding-right: 16px !important; }
+        }
       `}</style>
       {/* ================================================================ */}
       {/* LEFT COLUMN                                                      */}
@@ -753,7 +768,7 @@ export default function ModulePage() {
         }}
       >
         {/* -- BACK LINK -- */}
-        <div style={{ flexShrink: 0, padding: "16px 32px" }}>
+        <div className="lesson-back-link" style={{ flexShrink: 0, padding: "16px 32px" }}>
           <Link
             href="/learn"
             style={{
@@ -793,7 +808,7 @@ export default function ModulePage() {
                   transition: "opacity 150ms cubic-bezier(0.25, 1, 0.5, 1)",
                 }}
               >
-                <div style={{ padding: "0 32px" }}>
+                <div className="lesson-video-wrap" style={{ padding: "0 32px" }}>
                   <div
                     className="video-cap"
                     style={{
@@ -954,6 +969,7 @@ export default function ModulePage() {
 
         {/* -- TAB BAR -- */}
         <div
+          className="lesson-tab-bar"
           style={{
             flexShrink: 0,
             padding: "16px 32px 0",
@@ -1519,7 +1535,9 @@ export default function ModulePage() {
               }}
             >
               <SectionLabel>In This Module</SectionLabel>
-              <PanelToggle onClick={togglePanel} expanded={true} />
+              <span className="lesson-panel-toggle">
+                <PanelToggle onClick={togglePanel} expanded={true} />
+              </span>
             </div>
 
             {/* Panel content (scrollable) */}
