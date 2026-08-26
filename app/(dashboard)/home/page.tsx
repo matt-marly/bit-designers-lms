@@ -553,7 +553,7 @@ export default function HomePage() {
                       marginTop: 12,
                     }}
                   >
-                    You're all caught up
+                    You&apos;re all caught up
                   </p>
                   <p
                     style={{

@@ -1,0 +1,74 @@
+{
+  "slug": "self-custody-lightning-ux",
+  "week": 4,
+  "unit": {
+    "number": "03",
+    "title": "Self-Custody & Lightning UX",
+    "track": "DESIGN LAB"
+  },
+  "title": "Self-Custody & Lightning UX",
+  "description": "The two hardest UX domains in Bitcoin — keys and payments — taught through the Design Guide's patterns and applied live to your Flow Redesign wireframes.",
+  "overview": {
+    "objectives": [
+      "Design backup prompts, write-down ceremonies, and verification flows that carry life-savings stakes without paralyzing users",
+      "Compare recovery schemes — manual phrase vs cloud vs multi-key — and match them honestly to your user's reality",
+      "Explain channels and liquidity through their three user-visible surfaces: first-receive fees, receive limits, on-chain vs Lightning legibility",
+      "Apply honest/blameless/recoverable failure patterns to payment states in your own flow"
+    ],
+    "keyConcepts": [
+      "Seed phrase ceremony",
+      "Progressive security",
+      "Recovery schemes",
+      "Channels & liquidity",
+      "Payment requests",
+      "Failure states"
+    ]
+  },
+  "lesson": {
+    "path": "lesson.md",
+    "readingMinutes": 20,
+    "videoUrl": null,
+    "videoNote": null
+  },
+  "resources": [
+    {
+      "title": "Bitcoin Design Guide — \"Private key management\" (introduction + scheme overview)",
+      "desc": "CORE. The reference for custody schemes: single key, cloud backup, external signers, multi-key, with the use-case flowchart for choosing among them. The chapter behind this week's tradeoff conversation.",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/guide/how-it-works/private-key-management/introduction/"
+    },
+    {
+      "title": "Bitcoin Design Guide — \"Backup & recovery\" (Daily Spending Wallet reference design)",
+      "desc": "CORE. The full worked reference: backup prompts during first use, the skip path, cloud vs manual, and the recovery flow itself. Follow the chapter's sub-pages (landing → cloud backup → manual backup → recovery).",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/guide/daily-spending-wallet/backup-and-recovery/landing-page/"
+    },
+    {
+      "title": "Bitcoin Design Guide — \"Daily spending wallet\" (sending & requesting sections)",
+      "desc": "CORE. The Guide's lightning-first reference wallet: payment requests, sending flows, human-readable status messaging, and the failure states worth copying. Navigate to the Sending and Requesting sub-chapters from this hub.",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/guide/daily-spending-wallet/"
+    },
+    {
+      "title": "Wallet teardowns: record your own",
+      "desc": "ACTIVITY. Screen-record the send flow and the backup flow in two different wallets on your own phone (your Lesson 2 wallets qualify). Watch your recordings back at half attention, as a tired user would. Note every moment of hesitation — yours, not hypothetical. This is your material, not someone else's video, and it feeds directly into wireframe v1. Drop your sharpest single observation in #week-4.",
+      "type": "Activity",
+      "url": null
+    },
+    {
+      "title": "Bitcoin Design Community — wallet recovery / backup UX call recording",
+      "desc": "OPTIONAL VIDEO. One recorded community call where backup or recovery design is discussed by working designers. Facilitator posts the current cohort's pick in #week-4.",
+      "type": "Video",
+      "url": "https://www.youtube.com/@BitcoinDesign"
+    }
+  ],
+  "sessions": [],
+  "assignment": {
+    "title": "Wireframe v1 of your full flow",
+    "path": "assignment.md",
+    "due": "Sunday · 23:59 WAT",
+    "submissionFormat": "Figma link + 2–3 sentence reflection",
+    "unlocks": "Lesson 5 — Patterns, the UI Kit & the African User"
+  },
+  "quiz": []
+}

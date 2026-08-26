@@ -155,9 +155,24 @@ export function CommandPalette({
 }) {
   const [query, setQuery] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevQuery, setPrevQuery] = useState(query);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setQuery("");
+      setHighlightedIndex(0);
+    }
+  }
+
+  if (query !== prevQuery) {
+    setPrevQuery(query);
+    setHighlightedIndex(0);
+  }
 
   const results = useMemo(
     () => (query ? getSearchResults(query) : []),
@@ -174,8 +189,6 @@ export function CommandPalette({
   // Reset on open/close
   useEffect(() => {
     if (isOpen) {
-      setQuery("");
-      setHighlightedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
@@ -190,11 +203,6 @@ export function CommandPalette({
       };
     }
   }, [isOpen]);
-
-  // Reset highlight when query changes
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [query]);
 
   const activateItem = useCallback(
     (index: number) => {

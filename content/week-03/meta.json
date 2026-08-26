@@ -1,0 +1,74 @@
+{
+  "slug": "bitcoin-ux-principles",
+  "week": 3,
+  "unit": {
+    "number": "02",
+    "title": "Bitcoin UX Principles",
+    "track": "DESIGN LAB"
+  },
+  "title": "Bitcoin UX Principles",
+  "description": "The Bitcoin Design Guide becomes our spine, usability heuristics meet real wallet flows, and the Weeks 3–5 Flow Redesign project is issued.",
+  "overview": {
+    "objectives": [
+      "Navigate the Bitcoin Design Guide's design-process hub: usage life cycle, personal finance framing, reference designs",
+      "Apply the Units & Symbols chapter — BTC vs sats vs ₿, formatting rules, conversion display",
+      "Map NN/g's 10 usability heuristics to real Bitcoin examples",
+      "Choose your Flow Redesign flow and run a principle-based competitive scan of three wallets"
+    ],
+    "keyConcepts": [
+      "Usage life cycle",
+      "Units & symbols",
+      "Usability heuristics",
+      "Design critique",
+      "Competitive scan",
+      "Flow Redesign"
+    ]
+  },
+  "lesson": {
+    "path": "lesson.md",
+    "readingMinutes": 10,
+    "videoUrl": null,
+    "videoNote": null
+  },
+  "resources": [
+    {
+      "title": "Bitcoin Design Guide — \"Designing bitcoin products\" (introduction)",
+      "desc": "CORE. The Guide's design-process hub: usage life cycle, personal finance framing, and how the reference designs are meant to be used. This chapter makes the rest of the Guide navigable. From this week on, the Guide is our spine.",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/guide/designing-products/introduction/"
+    },
+    {
+      "title": "Bitcoin Design Guide — \"Units & symbols\"",
+      "desc": "CORE. BTC vs sats vs ₿, formatting rules, conversion display: the reference for this week's hardest segment and a chapter you'll keep open for the rest of your career.",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/guide/designing-products/units-and-symbols/"
+    },
+    {
+      "title": "Bitcoin Design Guide — \"First use\" (Daily Spending Wallet reference design)",
+      "desc": "CORE for Option A designers / recommended for everyone. The Guide's full worked reference for first-time experience in a lightning-first, self-custodial wallet, from app store listing to funded wallet.",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/guide/daily-spending-wallet/first-use/"
+    },
+    {
+      "title": "NN/g — \"10 Usability Heuristics for User Interface Design\"",
+      "desc": "CORE. The classic. Refresh it now: our audit rubric in Lesson 6 is built from these plus the Design Guide, and this week's call maps each heuristic to a Bitcoin example.",
+      "type": "Core Read",
+      "url": "https://www.nngroup.com/articles/ten-usability-heuristics/"
+    },
+    {
+      "title": "Bitcoin Design Community — Design Review call recordings",
+      "desc": "VIDEO. Watch one recent Design Review call (~60 min, or 30 min at 2×): working Bitcoin designers critiquing real product flows in public. Watch for how they critique: principle cited, screen named, alternative proposed. That's the format your Gate 2 crit uses. Facilitator curates 1–2 current picks each cohort in #week-3.",
+      "type": "Video",
+      "url": "https://www.youtube.com/@BitcoinDesign"
+    }
+  ],
+  "sessions": [],
+  "assignment": {
+    "title": "Choose your flow + 3-wallet competitive scan",
+    "path": "assignment.md",
+    "due": "Sunday · 23:59 WAT",
+    "submissionFormat": "Figma link + 2–3 sentence reflection",
+    "unlocks": "Lesson 4 — Self-Custody & Lightning UX"
+  },
+  "quiz": []
+}
