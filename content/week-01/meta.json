@@ -1,0 +1,77 @@
+{
+  "slug": "why-bitcoin-matters",
+  "week": 1,
+  "unit": {
+    "number": "01",
+    "title": "Bitcoin Fundamentals",
+    "track": "DESIGN LAB"
+  },
+  "title": "Why Bitcoin Matters",
+  "description": "Money before Bitcoin: what it's for, where it fails for African users, and the five Bitcoin principles that turn every failure into a design problem.",
+  "overview": {
+    "objectives": [
+      "Explain the three jobs of money and where born-into currencies quietly fail",
+      "Describe the four forces shaping money for African users — inflation, currency controls, remittances, mobile money",
+      "Explain why Bitcoin was created, in plain language, without jargon",
+      "Connect each of the five principles to a concrete design consequence"
+    ],
+    "keyConcepts": [
+      "Store of value",
+      "Inflation & devaluation",
+      "Remittances",
+      "Mobile money",
+      "Decentralization",
+      "Self-custody",
+      "Permissionlessness",
+      "Privacy",
+      "Security"
+    ]
+  },
+  "lesson": {
+    "path": "lesson.md",
+    "readingMinutes": 20,
+    "videoUrl": "https://www.youtube.com/embed/LA9A1RyXv9s",
+    "videoNote": "Placeholder: Antonopoulos' Introduction to Bitcoin. Swap with Week 1 class recording when available."
+  },
+  "resources": [
+    {
+      "title": "\"Check Your Financial Privilege\" — Alex Gladstein",
+      "desc": "The essay that reframes Bitcoin through the eyes of the 89% of the world not born into a reserve currency — with Nigeria's Feminist Coalition story. If you read one thing this week, read this.",
+      "type": "Core Read",
+      "url": "https://bitcoinmagazine.com/culture/check-your-financial-privilege"
+    },
+    {
+      "title": "\"What is Money, Anyway?\" — Lyn Alden",
+      "desc": "The clearest long-form walk through what money is and how it breaks. Read the first half (through the fiat currency sections); stop when it turns to markets.",
+      "type": "Core Read",
+      "url": "https://www.lynalden.com/what-is-money/"
+    },
+    {
+      "title": "Anita Posch — \"Bitcoin Empowers Africa and Africans Empower Bitcoin\"",
+      "desc": "Plan B Forum / BTC Prague keynote, ~25 min. First-hand field reporting from Zimbabwe, Zambia and beyond — watch it as design research: note actual behaviors, devices, and constraints, not just the message.",
+      "type": "Video",
+      "url": "https://www.youtube.com/watch?v=LY1UG1KSKew"
+    },
+    {
+      "title": "Andreas Antonopoulos — \"Introduction to Bitcoin\"",
+      "desc": "~30 min. The classic principles-first, price-free explanation of why Bitcoin is different in kind, not degree, from the money before it.",
+      "type": "Video",
+      "url": "https://www.youtube.com/watch?v=LA9A1RyXv9s"
+    },
+    {
+      "title": "The Little Bitcoin Book — Ajiboye, Gladstein, Song & others",
+      "desc": "Optional. ~120 pages, short and non-technical, co-written by a Nigerian builder — written around stories from Nigeria, Venezuela, and the Philippines. The best \"give this to a friend\" book in Bitcoin.",
+      "type": "Book",
+      "url": "https://www.amazon.com/Little-Bitcoin-Book-Matters-Finances/dp/1641990503"
+    }
+  ],
+  "sessions": [],
+  "assignment": {
+    "title": "Why Bitcoin, in your own words",
+    "path": "assignment.md",
+    "due": "Sunday · 23:59 WAT",
+    "submissionFormat": "Google Doc, Notion page, or PDF — your choice",
+    "unlocks": "Lesson 2 — How Bitcoin Works + Wallet Lab"
+  },
+  "quiz": []
+}

@@ -1,0 +1,74 @@
+{
+  "slug": "how-open-design-works",
+  "week": 7,
+  "unit": {
+    "number": "05",
+    "title": "How Open Design Works",
+    "track": "DESIGN LAB"
+  },
+  "title": "How Open Design Works",
+  "description": "The culture and mechanics of contributing design in public: GitHub as a forum with files attached, comments that land, and your first public contribution act.",
+  "overview": {
+    "objectives": [
+      "Understand how open-source design decisions get made without a boss: issues, proposals, rough consensus",
+      "Read a project like a designer — README, CONTRIBUTING, issue history, closed threads",
+      "Write public comments that land: evidence first, screenshots inline, questions that invite critique",
+      "Share Figma work in issues so maintainers actually engage with it"
+    ],
+    "keyConcepts": [
+      "Repos, issues & PRs",
+      "Contribution ladder",
+      "Comments that land",
+      "Design proposals",
+      "Communication norms",
+      "Silence protocol"
+    ]
+  },
+  "lesson": {
+    "path": "lesson.md",
+    "readingMinutes": 20,
+    "videoUrl": null,
+    "videoNote": null
+  },
+  "resources": [
+    {
+      "title": "Bitcoin Design Community — how to get involved",
+      "desc": "CORE. The community's own onboarding: calls calendar, project channels, and the current Discord invite. Join the Discord this week (assignment) and lurk the design channels; attend one design review call live if the time zone allows.",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/join/"
+    },
+    {
+      "title": "Open Source Design community",
+      "desc": "CORE. The wider world of design in OSS beyond Bitcoin: jobs board, community, and the long-running conversation about why design struggles in open source (and what fixes it). Context that makes you a better contributor everywhere.",
+      "type": "Core Read",
+      "url": "https://opensourcedesign.net/"
+    },
+    {
+      "title": "GitHub's Open Source Guides — \"How to Contribute\"",
+      "desc": "SKIM. Mechanics only: what forks, PRs, and issues are in GitHub's own words. Skim for vocabulary; our GitHub for Designers doc covers the designer-relevant path.",
+      "type": "Reference",
+      "url": "https://opensource.guide/how-to-contribute/"
+    },
+    {
+      "title": "The annotated example threads (Contribution Playbook, Section 6)",
+      "desc": "CORE. 2–3 real design issue threads, annotated by facilitators: study the moves (evidence first, questions that invite, graceful redirect) rather than the specifics. Available in the Contribution Playbook.",
+      "type": "Core Read",
+      "url": null
+    },
+    {
+      "title": "Bitcoin Design Community — proposal discussion call recording",
+      "desc": "VIDEO. Watch one call where someone brings a proposal and the community responds. This is the social reality you're entering; it is friendlier than your nerves think. Facilitator posts the current pick in #week-8.",
+      "type": "Video",
+      "url": "https://www.youtube.com/@BitcoinDesign"
+    }
+  ],
+  "sessions": [],
+  "assignment": {
+    "title": "Your first public contribution act",
+    "path": "assignment.md",
+    "due": "Sunday · 23:59 WAT",
+    "submissionFormat": "Three links/screenshots (Discord intro, issue comment, Gate 4 scope draft)",
+    "unlocks": "Lesson 8 — Your First Contribution (GATE 4)"
+  },
+  "quiz": []
+}

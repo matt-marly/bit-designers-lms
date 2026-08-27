@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     inviteId: invite.id,
     cohortId: invite.cohort_id,
     track: invite.track,
-    cohortName: (invite.cohorts as any)?.name || 'Unknown Cohort'
+    cohortName: (invite.cohorts as { name?: string } | null)?.name || 'Unknown Cohort'
   })
 }
 

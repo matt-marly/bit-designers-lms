@@ -1,0 +1,62 @@
+{
+  "slug": "your-first-contribution",
+  "week": 8,
+  "unit": {
+    "number": "06",
+    "title": "Your First Contribution",
+    "track": "DESIGN LAB"
+  },
+  "title": "Your First Contribution",
+  "description": "Ship it: turn audit findings into a scoped, submitted design contribution, and package it as a portfolio case study. Gate 4 — graduation.",
+  "overview": {
+    "objectives": [
+      "Scope a contribution maintainers can accept: small, evidenced, respectful of project conventions",
+      "Write an evidence-backed proposal using the Playbook templates — titles as problems, open questions that invite critique",
+      "Navigate maintainer feedback: revise fast, defend once, and apply the silence protocol",
+      "Package your contribution as a five-section case study for your portfolio and Demo Day"
+    ],
+    "keyConcepts": [
+      "Contribution ladder",
+      "Hunting grounds",
+      "Evidence-backed proposals",
+      "Silence protocol",
+      "Case study structure",
+      "Demo Day"
+    ]
+  },
+  "lesson": {
+    "path": "lesson.md",
+    "readingMinutes": 30,
+    "videoUrl": null,
+    "videoNote": null
+  },
+  "resources": [
+    {
+      "title": "Your own Gate 3 audit",
+      "desc": "CORE RE-READ. Your evidence base. Re-read it before scoping is final: the finding you contribute against should be the one with the strongest evidence, not necessarily the one you find most interesting. They're usually the same; when they're not, evidence wins.",
+      "type": "Core Read",
+      "url": null
+    },
+    {
+      "title": "The exemplary proposal threads (Contribution Playbook, Section 6)",
+      "desc": "CORE. You studied them in Lesson 7 for culture; re-read them now as templates for your own write-up. Note how each opener frames evidence in its first three sentences. Facilitator-maintained per cohort — see #contributions.",
+      "type": "Core Read",
+      "url": null
+    },
+    {
+      "title": "Bitcoin Design Community — proposal discussion call recording",
+      "desc": "OPTIONAL VIDEO. Watch how a real proposal is received in conversation: the questions maintainers ask, the tone of pushback, how the proposer responds. Calibrates your expectations for what happens after you press submit. Facilitator posts the current pick in #week-9.",
+      "type": "Video",
+      "url": "https://www.youtube.com/@BitcoinDesign"
+    }
+  ],
+  "sessions": [],
+  "assignment": {
+    "title": "GATE 4: Contribution + case study",
+    "path": "assignment.md",
+    "due": "Contribution Friday · Case study Sunday · 23:59 WAT",
+    "submissionFormat": "Issue/PR link + published case study + Demo Day presentation (slides by Wednesday rehearsal)",
+    "unlocks": "Graduation + mentorship track (on approval)"
+  },
+  "quiz": []
+}

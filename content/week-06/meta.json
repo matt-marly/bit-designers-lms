@@ -1,0 +1,74 @@
+{
+  "slug": "researching-bitcoin-products",
+  "week": 6,
+  "unit": {
+    "number": "04",
+    "title": "Researching Bitcoin Products",
+    "track": "DESIGN LAB"
+  },
+  "title": "Researching Bitcoin Products",
+  "description": "Turn craft into judgment: audit a real product with a shared rubric, talk to real users under a strict ethics kit, and publish the findings. Governs Gate 3.",
+  "overview": {
+    "objectives": [
+      "Run a heuristic evaluation with the shared 12-criterion rubric — no screenshot, no score",
+      "Interview Bitcoin users as a privacy-sensitive population: stories over opinions, silence as a tool",
+      "Apply the five research ethics rules, the consent script, and anonymization at the source",
+      "Run a lightweight moderated usability test (3–5 participants) and map observations to rubric criteria"
+    ],
+    "keyConcepts": [
+      "Heuristic evaluation",
+      "Scoring rubric",
+      "Severity ranking",
+      "Informed consent",
+      "Anonymization",
+      "Usability testing"
+    ]
+  },
+  "lesson": {
+    "path": "lesson.md",
+    "readingMinutes": 25,
+    "videoUrl": null,
+    "videoNote": null
+  },
+  "resources": [
+    {
+      "title": "NN/g — \"10 Usability Heuristics for User Interface Design\"",
+      "desc": "CORE. You met these in Lesson 3 as a designer; reread them now as an evaluator. Group A of our rubric is built directly on them.",
+      "type": "Core Read",
+      "url": "https://www.nngroup.com/articles/ten-usability-heuristics/"
+    },
+    {
+      "title": "NN/g — \"How to Conduct a Heuristic Evaluation\"",
+      "desc": "CORE. The method itself: evaluator process, severity ratings, how findings get written. Our audit adapts this; knowing the original makes you faster.",
+      "type": "Core Read",
+      "url": "https://www.nngroup.com/articles/how-to-conduct-a-heuristic-evaluation/"
+    },
+    {
+      "title": "Erika Hall — \"Just Enough Research\" (2024 Mule Books edition)",
+      "desc": "CORE BOOK. The pragmatic method reference for this whole phase. Priority chapters: Interviewing (for your Gate 3 interviews) and Evaluative Research. Short, funny, ruthless about bad research.",
+      "type": "Book",
+      "url": "https://www.mulebooks.com/just-enough-research"
+    },
+    {
+      "title": "Bitcoin Design Guide — Case Studies",
+      "desc": "CORE. Worked examples of real product analysis by working Bitcoin designers: the WalletScrutiny redesign (note its five user interviews), Blixt Wallet onboarding, and the Payjoin experience study. Study structure and tone; this is the publishing standard you're stepping into.",
+      "type": "Core Read",
+      "url": "https://bitcoin.design/guide/case-studies/"
+    },
+    {
+      "title": "Bitcoin Design Community — Design Review recordings",
+      "desc": "VIDEO. Watch one recent review specifically for findings language: how working designers phrase a problem, cite a principle, and propose a fix without attacking the maker. Your audit's tone check in video form. Facilitator posts the current pick in #week-6.",
+      "type": "Video",
+      "url": "https://www.youtube.com/@BitcoinDesign"
+    }
+  ],
+  "sessions": [],
+  "assignment": {
+    "title": "GATE 3: Published UX audit",
+    "path": "assignment.md",
+    "due": "Sunday of Week 7 · 23:59 WAT",
+    "submissionFormat": "Published audit + annotated Figma appendix (checkpoint: product + research plan in Week 6)",
+    "unlocks": "Phase 4 — Contribute (on approval)"
+  },
+  "quiz": []
+}
