@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { MotionProvider } from "@/components/motion-provider";
 import "./globals.css";
 
@@ -42,7 +44,11 @@ export default function RootLayout({
       style={{ backgroundColor: "#090909" }}
     >
       <body>
-        <MotionProvider>{children}</MotionProvider>
+        <ClerkProvider>
+          <ConvexClientProvider>
+            <MotionProvider>{children}</MotionProvider>
+          </ConvexClientProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

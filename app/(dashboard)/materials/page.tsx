@@ -1,9 +1,21 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { FileText, ExternalLink, Clock, ChevronDown, Search } from "lucide-react";
-import { mockMaterialGroups } from "@/lib/mock-materials-data";
-import type { Material } from "@/lib/mock-materials-data";
+import { api } from "@/convex/_generated/api";
+import { RESOURCE_CATEGORIES } from "@/convex/lib/resources";
+import { useLearnerTrack } from "@/lib/use-learner-track";
+import { LoadingLine } from "@/components/learn/ui";
+
+type Material = FunctionReturnType<typeof api.resources.list>[number];
+
+const materialCategories = RESOURCE_CATEGORIES.material;
+
+function openResource(url: string | null) {
+  if (url) window.open(url, "_blank", "noopener,noreferrer");
+}
 
 const font = {
   display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
@@ -13,9 +25,7 @@ const font = {
 
 const filterTabs = [
   { label: "All", value: "all" },
-  { label: "Core", value: "core" },
-  { label: "Craft", value: "craft" },
-  { label: "Contribute", value: "research-contribute" },
+  ...materialCategories.map((c) => ({ label: c.id === "research-contribute" ? "Contribute" : c.label, value: c.id })),
 ];
 
 function FilterTab({
@@ -61,11 +71,11 @@ function FilterTab({
 function MaterialCard({ material }: { material: Material }) {
   return (
     <div
-      onClick={() => window.open(material.url, "_blank")}
+      onClick={() => openResource(material.url)}
       role="link"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter") window.open(material.url, "_blank");
+        if (e.key === "Enter") openResource(material.url);
       }}
       className="group"
       style={{
@@ -126,7 +136,6 @@ function MaterialCard({ material }: { material: Material }) {
         </p>
       </div>
 
-      {/* Description */}
       <p
         className="line-clamp-2"
         style={{
@@ -141,10 +150,10 @@ function MaterialCard({ material }: { material: Material }) {
           wordBreak: "break-word",
         }}
       >
-        {material.description}
+        {material.description ?? ""}
       </p>
 
-      {/* Footer row — read time only */}
+      {(material.meta || material.resourceType === "file") && (
       <div
         style={{
           display: "flex",
@@ -167,9 +176,12 @@ function MaterialCard({ material }: { material: Material }) {
             color: "var(--color-text-tertiary)",
           }}
         >
-          {material.readTime} read
+          {[material.resourceType === "file" ? "PDF" : null, material.meta ? `${material.meta} read` : null]
+            .filter(Boolean)
+            .join(" · ")}
         </span>
       </div>
+      )}
     </div>
   );
 }
@@ -177,11 +189,13 @@ function MaterialCard({ material }: { material: Material }) {
 export default function MaterialsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const { loading, track } = useLearnerTrack();
+  const resources = useQuery(api.resources.list, loading ? "skip" : { kind: "material", trackId: track?.trackId });
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    for (let i = 0; i < mockMaterialGroups.length; i++) {
-      initial[mockMaterialGroups[i].id] = i === 0;
-    }
+    materialCategories.forEach((c, i) => {
+      initial[c.id] = i === 0;
+    });
     return initial;
   });
 
@@ -189,32 +203,42 @@ export default function MaterialsPage() {
     setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const groups = useMemo(
+    () =>
+      materialCategories
+        .map((c) => ({ ...c, materials: (resources ?? []).filter((r) => r.category === c.id) }))
+        .filter((g) => g.materials.length > 0),
+    [resources],
+  );
+
   const filteredGroups = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return mockMaterialGroups
+    return groups
       .filter((group) => activeFilter === "all" || group.id === activeFilter)
       .map((group) => {
         if (!q) return group;
         const filtered = group.materials.filter(
           (m) =>
             m.title.toLowerCase().includes(q) ||
-            m.description.toLowerCase().includes(q)
+            (m.description ?? "").toLowerCase().includes(q)
         );
         return { ...group, materials: filtered };
       })
       .filter((group) => group.materials.length > 0);
-  }, [searchQuery, activeFilter]);
+  }, [groups, searchQuery, activeFilter]);
 
   const isSpecificFilter = activeFilter !== "all";
 
-  const allExpanded = mockMaterialGroups.every((g) => expandedGroups[g.id] !== false);
+  const allExpanded = groups.every((g) => expandedGroups[g.id] !== false);
 
   const toggleAll = () => {
     const newState: Record<string, boolean> = {};
     const target = !allExpanded;
-    for (const g of mockMaterialGroups) newState[g.id] = target;
+    for (const g of groups) newState[g.id] = target;
     setExpandedGroups(newState);
   };
+
+  const contextLine = [track?.name, track?.cohort?.name].filter(Boolean).join(" · ");
 
   return (
     <div
@@ -235,7 +259,7 @@ export default function MaterialsPage() {
           marginBottom: 12,
         }}
       >
-        DESIGN LAB · COHORT 01
+        {contextLine || "\u00A0"}
       </span>
 
       {/* Title */}
@@ -367,7 +391,13 @@ export default function MaterialsPage() {
 
       <div style={{ height: 32 }} />
 
-      {filteredGroups.length === 0 ? (
+      {resources === undefined ? (
+        <LoadingLine>Loading materials…</LoadingLine>
+      ) : groups.length === 0 ? (
+        <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-tertiary)", margin: 0 }}>
+          No materials have been added yet.
+        </p>
+      ) : filteredGroups.length === 0 ? (
         <div
           style={{
             display: "flex",
@@ -589,7 +619,7 @@ export default function MaterialsPage() {
                     style={{ gap: 12 }}
                   >
                     {group.materials.map((material) => (
-                      <MaterialCard key={material.slug} material={material} />
+                      <MaterialCard key={material._id} material={material} />
                     ))}
                   </div>
                 </div>

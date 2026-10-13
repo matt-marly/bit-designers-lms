@@ -1,1072 +1,140 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  ExternalLink,
-  Upload,
-  FileText,
-  X,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  AlertTriangle,
-  Circle,
-  GraduationCap,
-  CheckSquare,
-  ChevronRight,
-} from "lucide-react";
-import { SectionLabel } from "@/components/ui/custom/section-label";
-import { PrimaryButton } from "@/components/ui/custom/buttons";
-import { getMissionBySlug, getAdjacentMissions } from "@/lib/mock-missions-data";
-import type { MissionStatus, MissionSubmission } from "@/lib/mock-missions-data";
+import { AlertTriangle, CheckSquare, ExternalLink, GraduationCap, Paperclip, X } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { Markdown } from "@/components/markdown";
+import { Toast, errorMessage, focusHandlers, useToast } from "@/components/admin/ui";
+import { DraftNotice, LoadingLine, PageMessage, font, monoLabelStyle } from "@/components/learn/ui";
+import { MissionStatusIndicator, isOverdue, longDate, shortDate } from "@/components/learn/missions";
 
-const font = {
-  display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
-  body: "var(--font-body), 'Inter', system-ui, -apple-system, sans-serif",
-  mono: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+type MissionDetail = NonNullable<FunctionReturnType<typeof api.missions.get>>;
+type Submission = MissionDetail["submissions"][number];
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+const NOTE_LIMIT = 2000;
+
+const sectionStyle: React.CSSProperties = { padding: "28px 32px" };
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  height: 44,
+  padding: "0 14px",
+  borderRadius: 10,
+  backgroundColor: "var(--color-bg-surface-2)",
+  border: "1px solid var(--color-border-strong)",
+  color: "var(--color-text-primary)",
+  fontFamily: font.body,
+  fontSize: 14.5,
+  outline: "none",
+  boxSizing: "border-box",
 };
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontFamily: font.body,
+  fontSize: 14,
+  fontWeight: 500,
+  color: "var(--color-text-primary)",
+  marginBottom: 8,
+};
+
+const hintStyle: React.CSSProperties = {
+  fontFamily: font.body,
+  fontSize: 12,
+  lineHeight: "18px",
+  color: "var(--color-text-tertiary)",
+  margin: "6px 0 0",
+};
+
+function displayUrl(url: string, max = 60) {
+  const stripped = url.replace(/^https?:\/\//, "");
+  return stripped.length <= max ? stripped : `${stripped.slice(0, max)}…`;
 }
 
-function formatDateShort(dateStr: string): string {
-  return new Date(dateStr)
-    .toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    .toUpperCase();
-}
-
-function isOverdue(dateStr: string): boolean {
-  const due = new Date(dateStr + "T23:59:59");
-  return due.getTime() < Date.now();
-}
-
-function truncateUrl(url: string, max = 55): string {
-  if (url.length <= max) return url;
-  return url.slice(0, max) + "…";
-}
-
-function HoverLink({
-  href,
-  children,
-  style,
-}: {
-  href: string;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <Link
-      href={href}
-      style={{
-        textDecoration: "none",
-        color: "var(--color-text-tertiary)",
-        transitionProperty: "color",
-        transitionDuration: "var(--duration-fast)",
-        transitionTimingFunction: "var(--ease-out-quart)",
-        ...style,
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
-      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-tertiary)")}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function VerticalDivider() {
-  return (
-    <div
-      style={{
-        width: 1,
-        height: 12,
-        backgroundColor: "var(--color-border-subtle)",
-        flexShrink: 0,
-      }}
-    />
-  );
-}
-
-function StatusIndicator({ status }: { status: MissionStatus }) {
-  const iconStyle = { width: 13, height: 13, flexShrink: 0 } as const;
-  const textStyle = {
-    fontFamily: font.body,
-    fontSize: 13,
-    lineHeight: "18px",
-    fontWeight: 400,
-  } as const;
-
-  switch (status) {
-    case "passed":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <CheckCircle style={{ ...iconStyle, color: "var(--color-text-secondary)" }} />
-          <span style={{ ...textStyle, color: "var(--color-text-secondary)" }}>Passed</span>
-        </div>
-      );
-    case "needs-revision":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <AlertCircle style={{ ...iconStyle, color: "#F59E0B" }} />
-          <span style={{ ...textStyle, color: "#F59E0B" }}>Needs revision</span>
-        </div>
-      );
-    case "submitted":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Clock style={{ ...iconStyle, color: "var(--color-text-tertiary)" }} />
-          <span style={{ ...textStyle, color: "var(--color-text-tertiary)" }}>Submitted</span>
-        </div>
-      );
-    case "in-review":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Clock style={{ ...iconStyle, color: "var(--color-text-tertiary)" }} />
-          <span style={{ ...textStyle, color: "var(--color-text-tertiary)" }}>In review</span>
-        </div>
-      );
-    case "not-started":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Circle style={{ ...iconStyle, color: "var(--color-text-tertiary)" }} />
-          <span style={{ ...textStyle, color: "var(--color-text-tertiary)" }}>Not started</span>
-        </div>
-      );
-  }
-}
-
-function SubmissionStatusIndicator({ status }: { status: MissionStatus }) {
-  const iconStyle = { width: 13, height: 13, flexShrink: 0 } as const;
-  const textStyle = {
-    fontFamily: font.body,
-    fontSize: 12,
-    lineHeight: "16px",
-    fontWeight: 500,
-  } as const;
-
-  switch (status) {
-    case "passed":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <CheckCircle style={{ ...iconStyle, color: "var(--color-text-secondary)" }} />
-          <span style={{ ...textStyle, color: "var(--color-text-secondary)" }}>Passed</span>
-        </div>
-      );
-    case "needs-revision":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <AlertCircle style={{ ...iconStyle, color: "#F59E0B" }} />
-          <span style={{ ...textStyle, color: "#F59E0B" }}>Needs revision</span>
-        </div>
-      );
-    case "submitted":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Clock style={{ ...iconStyle, color: "var(--color-text-tertiary)" }} />
-          <span style={{ ...textStyle, color: "var(--color-text-tertiary)" }}>Submitted</span>
-        </div>
-      );
-    case "in-review":
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Clock style={{ ...iconStyle, color: "var(--color-text-tertiary)" }} />
-          <span style={{ ...textStyle, color: "var(--color-text-tertiary)" }}>In review</span>
-        </div>
-      );
-    default:
-      return null;
-  }
+function formatBytes(bytes: number) {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export default function MissionDetailPage() {
-  const params = useParams();
-  const slug = params.missionSlug as string;
-  const mission = getMissionBySlug(slug);
-  const adjacent = getAdjacentMissions(slug);
+  const { missionSlug } = useParams<{ missionSlug: string }>();
+  const data = useQuery(api.missions.get, { slug: missionSlug });
 
-  const [linkValue, setLinkValue] = useState("");
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [fileSize, setFileSize] = useState<string | null>(null);
-  const [noteValue, setNoteValue] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "warning";
-  } | null>(null);
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [rubricOpen, setRubricOpen] = useState(false);
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
-
-  function validateUrl(url: string): boolean {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  if (!mission) {
+  if (data === undefined) return <LoadingLine>Loading mission…</LoadingLine>;
+  if (data === null) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "120px 24px",
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: font.display,
-            fontSize: 24,
-            fontWeight: 600,
-            color: "#FFFFFF",
-            margin: 0,
-          }}
-        >
-          Mission not found
-        </h1>
-        <p
-          style={{
-            fontFamily: font.body,
-            fontSize: 14,
-            color: "#737373",
-            margin: 0,
-            marginTop: 8,
-            textAlign: "center",
-          }}
-        >
-          This mission doesn&apos;t exist or has been removed.
-        </p>
-        <Link
-          href="/missions"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: 40,
-            padding: "0 16px",
-            borderRadius: 10,
-            border: "1px solid #333333",
-            backgroundColor: "transparent",
-            color: "#FFFFFF",
-            fontFamily: font.body,
-            fontSize: "14.5px",
-            fontWeight: 500,
-            textDecoration: "none",
-            marginTop: 20,
-            transitionProperty: "background-color, border-color",
-            transitionDuration: "120ms",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-            e.currentTarget.style.borderColor = "#333333";
-          }}
-        >
-          Back to Missions
-        </Link>
-      </div>
+      <PageMessage
+        title="Mission not found"
+        body="It may have been removed, or it isn't available to you yet."
+        action={{ href: "/missions", label: "Back to Missions" }}
+      />
     );
   }
+  return <MissionView key={data.mission._id} data={data} />;
+}
 
-  const isReviewed = mission.type === "reviewed";
-  const showSubmitForm =
-    mission.status === "not-started" || mission.status === "needs-revision";
-  const showAwaitingReview =
-    mission.status === "submitted" || mission.status === "in-review";
-  const showPassedState = mission.status === "passed";
-  const overdue =
-    isOverdue(mission.dueAt) &&
-    (mission.status === "not-started" || mission.status === "needs-revision");
-
-  function handleFileSelect(file: File) {
-    const allowedTypes = [
-      "application/pdf",
-      "image/png",
-      "image/jpeg",
-      "image/webp",
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      setToast({ message: "Only PDF or image files accepted", type: "error" });
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setToast({ message: "File must be under 10MB", type: "error" });
-      return;
-    }
-    const sizeKb = Math.round(file.size / 1024);
-    const sizeStr = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
-    setFileName(file.name);
-    setFileSize(sizeStr);
-  }
-
-  function handleSubmit() {
-    if (!mission) return;
-    if (!linkValue.trim()) {
-      setLinkError("A link to your work is required");
-      return;
-    }
-    if (!validateUrl(linkValue.trim())) {
-      setLinkError("Please enter a valid URL");
-      return;
-    }
-    setLinkError(null);
-    const isRevision = mission.status === "needs-revision";
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitSuccess(true);
-      setToast({
-        message: isRevision ? "Resubmission received" : "Deliverable submitted",
-        type: "success",
-      });
-    }, 1500);
-  }
-
-  // Determine which content sections to show
-  const sections: React.ReactNode[] = [];
-
-  // A. Mission Brief
-  if (mission.brief) {
-    sections.push(
-      <div key="brief" style={{ padding: 24 }}>
-        <SectionLabel>Mission Brief</SectionLabel>
-        <p
-          style={{
-            fontFamily: font.body,
-            fontSize: 15,
-            lineHeight: "26px",
-            fontWeight: 400,
-            color: "var(--color-text-secondary)",
-            margin: 0,
-            marginTop: 16,
-          }}
-        >
-          {mission.brief}
-        </p>
-      </div>
-    );
-  }
-
-  // B. Evaluation Rubric (collapsed by default)
-  if (isReviewed && mission.rubric) {
-    sections.push(
-      <div key="rubric" style={{ padding: 24 }}>
-        <button
-          onClick={() => setRubricOpen(!rubricOpen)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          <ChevronRight
-            style={{
-              width: 14,
-              height: 14,
-              color: "var(--color-text-tertiary)",
-              transform: rubricOpen ? "rotate(90deg)" : "rotate(0deg)",
-              transition: "transform 120ms ease",
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 600,
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-            }}
-          >
-            {rubricOpen ? "Hide Rubric" : "View Rubric"}
-          </span>
-        </button>
-        {rubricOpen && (
-          <>
-            <p
-              style={{
-                fontFamily: font.body,
-                fontSize: 13,
-                lineHeight: "19px",
-                fontWeight: 400,
-                color: "var(--color-text-tertiary)",
-                margin: 0,
-                marginTop: 12,
-                marginBottom: 16,
-              }}
-            >
-              Your submission will be evaluated against these criteria
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {mission.rubric.map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <span
-                    style={{
-                      fontFamily: font.mono,
-                      fontSize: 12,
-                      lineHeight: "22px",
-                      fontWeight: 500,
-                      color: "var(--color-text-tertiary)",
-                      flexShrink: 0,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {String(i + 1).padStart(2, "0")}.
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: font.body,
-                      fontSize: "14.5px",
-                      lineHeight: "22px",
-                      fontWeight: 400,
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    {item}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  // C. Submission History
-  if (mission.submissions.length > 0) {
-    const reversed = [...mission.submissions].reverse();
-    sections.push(
-      <div key="history" style={{ padding: 24 }}>
-        <SectionLabel>Submission History</SectionLabel>
-        <div style={{ marginTop: 16 }}>
-          {reversed.map((sub, i) => (
-            <div key={sub.id}>
-              <SubmissionEntry submission={sub} isReviewed={isReviewed} />
-              {i < reversed.length - 1 && (
-                <div
-                  style={{
-                    height: 1,
-                    backgroundColor: "var(--color-border-subtle)",
-                    marginTop: 20,
-                    marginBottom: 20,
-                  }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // D. Submit / Resubmit / Awaiting Review / Passed
-  if (!submitSuccess) {
-    if (showSubmitForm) {
-      sections.push(
-        <div key="submit" style={{ padding: 24 }}>
-          <SectionLabel>
-            {mission.status === "needs-revision" ? "Resubmit Your Work" : "Submit Your Work"}
-          </SectionLabel>
-
-          {mission.status === "needs-revision" && (
-            <p
-              style={{
-                fontFamily: font.body,
-                fontSize: 14,
-                lineHeight: "22px",
-                fontWeight: 400,
-                color: "var(--color-text-secondary)",
-                margin: 0,
-                marginTop: 8,
-                marginBottom: 24,
-              }}
-            >
-              Address the mentor feedback above in your resubmission.
-            </p>
-          )}
-
-          <div style={{ marginTop: mission.status === "needs-revision" ? 0 : 16 }}>
-            {/* Link field */}
-            <div style={{ marginBottom: 20 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: font.body,
-                  fontSize: 14,
-                  lineHeight: "20px",
-                  fontWeight: 500,
-                  color: "var(--color-text-primary)",
-                  marginBottom: 8,
-                }}
-              >
-                Figma, GitHub, or other link
-              </label>
-              <input
-                type="url"
-                value={linkValue}
-                onChange={(e) => {
-                  setLinkValue(e.target.value);
-                  if (linkError) setLinkError(null);
-                }}
-                placeholder="https://figma.com/file/..."
-                style={{
-                  width: "100%",
-                  height: 40,
-                  backgroundColor: "var(--color-bg-surface-2)",
-                  border: `1px solid ${linkError ? "rgba(239,68,68,0.55)" : "var(--color-border-strong)"}`,
-                  borderRadius: 10,
-                  padding: "0 16px",
-                  fontFamily: font.body,
-                  fontSize: "14.5px",
-                  lineHeight: "22px",
-                  color: "var(--color-text-primary)",
-                  outline: "none",
-                  transitionProperty: "border-color",
-                  transitionDuration: "var(--duration-base)",
-                  transitionTimingFunction: "var(--ease-out-quart)",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = linkError
-                    ? "rgba(239,68,68,0.55)"
-                    : "var(--color-border-focus)";
-                }}
-                onBlur={(e) => {
-                  const val = e.currentTarget.value;
-                  if (val.trim() && !validateUrl(val.trim())) {
-                    setLinkError("Please enter a valid URL");
-                    e.currentTarget.style.borderColor = "rgba(239,68,68,0.55)";
-                  } else {
-                    if (linkError && val.trim()) setLinkError(null);
-                    e.currentTarget.style.borderColor = "var(--color-border-strong)";
-                  }
-                }}
-              />
-              {linkError && (
-                <p
-                  style={{
-                    fontFamily: font.body,
-                    fontSize: 12,
-                    color: "#F87171",
-                    margin: 0,
-                    marginTop: 6,
-                  }}
-                >
-                  {linkError}
-                </p>
-              )}
-            </div>
-
-            {/* File upload */}
-            <div style={{ marginBottom: 20 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 8,
-                  marginBottom: 8,
-                }}
-              >
-                <label
-                  style={{
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    lineHeight: "20px",
-                    fontWeight: 500,
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  Supporting file (optional)
-                </label>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    color: "var(--color-text-tertiary)",
-                  }}
-                >
-                  PDF or image, max 10MB
-                </span>
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.webp"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileSelect(file);
-                }}
-              />
-
-              {!fileName ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragOver(true);
-                  }}
-                  onDragLeave={() => setIsDragOver(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDragOver(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) handleFileSelect(file);
-                  }}
-                  style={{
-                    backgroundColor: isDragOver
-                      ? "var(--color-indigo-subtle)"
-                      : "var(--color-bg-surface-2)",
-                    border: `1px dashed ${
-                      isDragOver ? "var(--color-indigo)" : "var(--color-border-strong)"
-                    }`,
-                    borderRadius: 10,
-                    padding: 20,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 10,
-                    minHeight: 64,
-                    cursor: "pointer",
-                    transitionProperty: "background-color, border-color",
-                    transitionDuration: "var(--duration-fast)",
-                    transitionTimingFunction: "var(--ease-out-quart)",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isDragOver) {
-                      e.currentTarget.style.borderColor = "var(--color-indigo-border)";
-                      e.currentTarget.style.backgroundColor = "var(--color-bg-surface-3)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isDragOver) {
-                      e.currentTarget.style.borderColor = "var(--color-border-strong)";
-                      e.currentTarget.style.backgroundColor = "var(--color-bg-surface-2)";
-                    }
-                  }}
-                >
-                  <Upload
-                    style={{
-                      width: 18,
-                      height: 18,
-                      color: "var(--color-text-tertiary)",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: font.body,
-                      fontSize: 13,
-                      lineHeight: "18px",
-                      fontWeight: 400,
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    Drop file here or click to upload
-                  </span>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    backgroundColor: "var(--color-bg-surface-2)",
-                    border: "1px solid var(--color-border-subtle)",
-                    borderRadius: 10,
-                    padding: "12px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <FileText
-                    style={{
-                      width: 16,
-                      height: 16,
-                      color: "var(--color-text-tertiary)",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p
-                      style={{
-                        fontFamily: font.body,
-                        fontSize: "14.5px",
-                        lineHeight: "22px",
-                        fontWeight: 500,
-                        color: "var(--color-text-primary)",
-                        margin: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {fileName}
-                    </p>
-                    {fileSize && (
-                      <p
-                        style={{
-                          fontFamily: font.mono,
-                          fontSize: 11,
-                          lineHeight: "14px",
-                          fontWeight: 500,
-                          color: "var(--color-text-tertiary)",
-                          margin: 0,
-                          marginTop: 2,
-                        }}
-                      >
-                        {fileSize}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setFileName(null);
-                      setFileSize(null);
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                    }}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "transparent",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      color: "var(--color-text-tertiary)",
-                      flexShrink: 0,
-                      transitionProperty: "background-color, color",
-                      transitionDuration: "var(--duration-fast)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "var(--color-bg-surface-3)";
-                      e.currentTarget.style.color = "var(--color-text-primary)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.color = "var(--color-text-tertiary)";
-                    }}
-                    aria-label="Remove file"
-                  >
-                    <X style={{ width: 14, height: 14 }} />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Note field */}
-            <div style={{ marginBottom: 20 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: font.body,
-                  fontSize: 14,
-                  lineHeight: "20px",
-                  fontWeight: 500,
-                  color: "var(--color-text-primary)",
-                  marginBottom: 8,
-                }}
-              >
-                Note to mentor (optional)
-              </label>
-              <textarea
-                value={noteValue}
-                onChange={(e) => setNoteValue(e.target.value)}
-                placeholder="Any context that might help your mentor..."
-                rows={3}
-                style={{
-                  width: "100%",
-                  backgroundColor: "var(--color-bg-surface-2)",
-                  border: "1px solid var(--color-border-strong)",
-                  borderRadius: 10,
-                  padding: "12px 16px",
-                  fontFamily: font.body,
-                  fontSize: "14.5px",
-                  lineHeight: "22px",
-                  color: "var(--color-text-primary)",
-                  outline: "none",
-                  resize: "vertical",
-                  transitionProperty: "border-color",
-                  transitionDuration: "var(--duration-base)",
-                  transitionTimingFunction: "var(--ease-out-quart)",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-border-focus)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-border-strong)";
-                }}
-              />
-            </div>
-
-            {/* Submit button */}
-            <PrimaryButton
-              fullWidth
-              disabled={isSubmitting}
-              onClick={handleSubmit}
-            >
-              {isSubmitting
-                ? "Submitting…"
-                : mission.status === "needs-revision"
-                  ? "Resubmit"
-                  : "Submit deliverable"}
-            </PrimaryButton>
-          </div>
-        </div>
-      );
-    } else if (showAwaitingReview) {
-      sections.push(
-        <div key="awaiting" style={{ padding: 24 }}>
-          <SectionLabel>Your Submission</SectionLabel>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
-            <Clock
-              style={{
-                width: 20,
-                height: 20,
-                color: "var(--color-text-tertiary)",
-                flexShrink: 0,
-              }}
-            />
-            <div>
-              <p
-                style={{
-                  fontFamily: font.body,
-                  fontSize: "14.5px",
-                  lineHeight: "22px",
-                  fontWeight: 500,
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                }}
-              >
-                Submission received
-              </p>
-              <p
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 14,
-                  lineHeight: "22px",
-                  fontWeight: 400,
-                  color: "var(--color-text-secondary)",
-                  margin: 0,
-                  marginTop: 4,
-                }}
-              >
-                Your mentor will review within 3–5 days.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    } else if (showPassedState) {
-      sections.push(
-        <div key="passed" style={{ padding: 24 }}>
-          <SectionLabel>Your Submission</SectionLabel>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
-            <CheckCircle
-              style={{
-                width: 20,
-                height: 20,
-                color: "var(--color-text-secondary)",
-                flexShrink: 0,
-              }}
-            />
-            <div>
-              <p
-                style={{
-                  fontFamily: font.body,
-                  fontSize: "14.5px",
-                  lineHeight: "22px",
-                  fontWeight: 500,
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                }}
-              >
-                Mission passed
-              </p>
-              <p
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 14,
-                  lineHeight: "22px",
-                  fontWeight: 400,
-                  color: "var(--color-text-secondary)",
-                  margin: 0,
-                  marginTop: 4,
-                }}
-              >
-                Great work. This mission is complete.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-  } else {
-    // Success state after submit
-    sections.push(
-      <div key="success" style={{ padding: 24 }}>
-        <SectionLabel>Your Submission</SectionLabel>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
-          <CheckCircle
-            style={{
-              width: 20,
-              height: 20,
-              color: "var(--color-text-secondary)",
-              flexShrink: 0,
-            }}
-          />
-          <div>
-            <p
-              style={{
-                fontFamily: font.body,
-                fontSize: "14.5px",
-                lineHeight: "22px",
-                fontWeight: 500,
-                color: "var(--color-text-primary)",
-                margin: 0,
-              }}
-            >
-              Submission received
-            </p>
-            <p
-              style={{
-                fontFamily: font.body,
-                fontSize: 14,
-                lineHeight: "22px",
-                fontWeight: 400,
-                color: "var(--color-text-secondary)",
-                margin: 0,
-                marginTop: 4,
-              }}
-            >
-              {isReviewed
-                ? "Your mentor will review within 3–5 days."
-                : "Submission recorded. No review required."}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+function MissionView({ data }: { data: MissionDetail }) {
+  const { toast, showToast } = useToast();
+  const { mission } = data;
+  const isReviewed = mission.reviewType === "reviewed";
+  const latest = data.submissions[0] ?? null;
+  const overdue = isOverdue(data.dueAt, data.satisfied, data.status);
+  const showDue = data.dueAt !== null && !data.satisfied && data.status !== "submitted" && data.status !== "in_review";
 
   return (
     <div className="mission-detail" style={{ maxWidth: 760, margin: "0 auto" }}>
       <style>{`
         @media (max-width: 768px) {
-          .mission-detail { padding: 0 16px !important; }
           .mission-detail .mission-title { font-size: 24px !important; line-height: 30px !important; }
-          .mission-detail .mission-submit-btn { width: 100%; }
+          .mission-detail .mission-section { padding: 20px !important; }
           .mission-detail .mission-nav-row { flex-direction: column !important; align-items: flex-start !important; }
-          .mission-detail .mission-nav-right { flex-wrap: wrap; }
         }
       `}</style>
-      {/* 1. BACK LINK + MISSION SEQUENCE */}
-      <div
+
+      <nav
+        aria-label="Missions"
         className="mission-nav-row"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 32,
-          flexWrap: "wrap",
-          gap: 12,
-        }}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32, flexWrap: "wrap", gap: 12 }}
       >
-        <HoverLink href="/missions" style={{ fontFamily: font.body, fontSize: 13, lineHeight: "18px", fontWeight: 400 }}>
-          ← Missions
-        </HoverLink>
-
-        <div className="mission-nav-right" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 600,
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {`MISSION ${mission.number} OF ${String(adjacent.total).padStart(2, "0")}`}
+        <Link href="/missions" style={{ fontFamily: font.body, fontSize: 13, color: "var(--color-text-tertiary)", textDecoration: "none" }}>
+          &larr; Missions
+        </Link>
+        <span style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <span style={monoLabelStyle}>
+            Mission {mission.number} of {String(data.total).padStart(2, "0")}
           </span>
+          {data.prev && (
+            <Link href={`/missions/${data.prev.slug}`} style={{ fontFamily: font.body, fontSize: 12, color: "var(--color-text-tertiary)", textDecoration: "none" }}>
+              &larr; {data.prev.title}
+            </Link>
+          )}
+          {data.next && (
+            <Link href={`/missions/${data.next.slug}`} style={{ fontFamily: font.body, fontSize: 12, color: "var(--color-text-tertiary)", textDecoration: "none" }}>
+              {data.next.title} &rarr;
+            </Link>
+          )}
+        </span>
+      </nav>
 
-          {adjacent.prev && (
-            <HoverLink
-              href={`/missions/${adjacent.prev.slug}`}
-              style={{ fontFamily: font.body, fontSize: 12, lineHeight: "16px", fontWeight: 400 }}
-            >
-              ← {adjacent.prev.title}
-            </HoverLink>
-          )}
-          {adjacent.next && (
-            <HoverLink
-              href={`/missions/${adjacent.next.slug}`}
-              style={{ fontFamily: font.body, fontSize: 12, lineHeight: "16px", fontWeight: 400 }}
-            >
-              {adjacent.next.title} →
-            </HoverLink>
-          )}
+      {data.module.status === "draft" && (
+        <div style={{ marginBottom: 20 }}>
+          <DraftNotice />
         </div>
-      </div>
+      )}
 
-      {/* 2. PAGE HEADER */}
       <header>
-        {/* Context line */}
-        <p
-          style={{
-            fontFamily: font.mono,
-            fontSize: 11,
-            lineHeight: "14px",
-            fontWeight: 500,
-            textTransform: "uppercase",
-            color: "var(--color-text-tertiary)",
-            margin: 0,
-            marginBottom: 12,
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {`MISSION ${mission.number} · ${mission.unit} · ${mission.module}`}
+        <p style={{ ...monoLabelStyle, fontWeight: 500, margin: 0, marginBottom: 12 }}>
+          Unit {data.unit.number} ·{" "}
+          <Link href={`/learn/${data.module.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+            {data.module.title}
+          </Link>
         </p>
-
-        {/* Title */}
         <h1
           className="mission-title"
           style={{
@@ -1081,335 +149,437 @@ export default function MissionDetailPage() {
         >
           {mission.title}
         </h1>
-
-        {/* Meta row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 20,
-            flexWrap: "wrap",
-            marginTop: 16,
-          }}
-        >
-          {/* Type indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 16 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             {isReviewed ? (
-              <GraduationCap
-                style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }}
-              />
+              <GraduationCap aria-hidden style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }} />
             ) : (
-              <CheckSquare
-                style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }}
-              />
+              <CheckSquare aria-hidden style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }} />
             )}
-            <span
-              style={{
-                fontFamily: font.body,
-                fontSize: 13,
-                lineHeight: "18px",
-                fontWeight: 400,
-                color: "var(--color-text-tertiary)",
-              }}
-            >
-              {isReviewed ? "Mentor reviewed" : "Completion only"}
+            <span style={{ fontFamily: font.body, fontSize: 13, color: "var(--color-text-tertiary)" }}>
+              {isReviewed ? "Mentor reviewed" : "Done on submit"}
             </span>
-          </div>
-
-          <VerticalDivider />
-
-          {/* Status */}
-          <StatusIndicator status={mission.status} />
-
-          {/* Due date — only for overdue + (needs-revision or not-started) */}
-          {overdue && (
+          </span>
+          <span aria-hidden style={{ width: 1, height: 14, backgroundColor: "var(--color-border-strong)" }} />
+          <MissionStatusIndicator status={data.status} reviewType={mission.reviewType} />
+          {overdue && data.dueAt !== null ? (
             <>
-              <VerticalDivider />
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <AlertTriangle
-                  style={{
-                    width: 11,
-                    height: 11,
-                    color: "var(--color-text-secondary)",
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    color: "var(--color-text-primary)",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  OVERDUE
-                </span>
-              </div>
+              <span aria-hidden style={{ width: 1, height: 14, backgroundColor: "var(--color-border-strong)" }} />
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, ...monoLabelStyle, color: "#F87171" }}>
+                <AlertTriangle aria-hidden style={{ width: 11, height: 11 }} />
+                Overdue since {shortDate(data.dueAt)}
+              </span>
             </>
-          )}
-
-          {/* Future due date — only if not passed/submitted and not overdue */}
-          {!overdue &&
-            mission.status !== "passed" &&
-            mission.status !== "submitted" &&
-            mission.status !== "in-review" && (
-              <>
-                <VerticalDivider />
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    textTransform: "uppercase",
-                    color: "var(--color-text-tertiary)",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {`DUE ${formatDateShort(mission.dueAt)}`}
-                </span>
-              </>
-            )}
+          ) : showDue && data.dueAt !== null ? (
+            <>
+              <span aria-hidden style={{ width: 1, height: 14, backgroundColor: "var(--color-border-strong)" }} />
+              <span style={{ ...monoLabelStyle, fontWeight: 500 }}>Due {longDate(data.dueAt)}</span>
+            </>
+          ) : null}
         </div>
-
-        {/* Divider */}
-        <div
-          style={{
-            height: 1,
-            backgroundColor: "var(--color-border-subtle)",
-            marginTop: 24,
-            marginBottom: 32,
-          }}
-        />
+        <div style={{ height: 1, backgroundColor: "var(--color-border-subtle)", marginTop: 24, marginBottom: 32 }} />
       </header>
 
-      {/* 3. CONTENT SECTIONS — single outer container */}
-      <div
-        style={{
-          border: "1px solid var(--color-border-subtle)",
-          borderRadius: 14,
-          overflow: "hidden",
-        }}
-      >
-        {sections.map((section, i) => (
-          <div key={i}>
-            {section}
-            {i < sections.length - 1 && (
-              <div
-                style={{
-                  height: 1,
-                  backgroundColor: "var(--color-border-subtle)",
-                }}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+      <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 14, overflow: "hidden", backgroundColor: "var(--color-bg-surface)" }}>
+        <section className="mission-section" style={sectionStyle} aria-labelledby="brief-heading">
+          <h2 id="brief-heading" style={{ ...monoLabelStyle, margin: "0 0 16px" }}>
+            The brief
+          </h2>
+          {mission.brief.trim() ? (
+            <Markdown>{mission.brief}</Markdown>
+          ) : (
+            <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-tertiary)", margin: 0 }}>
+              Your mentors haven&apos;t written the brief yet.
+            </p>
+          )}
+        </section>
 
-      {/* Bottom spacing */}
-      <div style={{ height: 64 }} />
+        {mission.rubric.length > 0 && (
+          <section
+            className="mission-section"
+            style={{ ...sectionStyle, borderTop: "1px solid var(--color-border-subtle)" }}
+            aria-labelledby="rubric-heading"
+          >
+            <h2 id="rubric-heading" style={{ ...monoLabelStyle, margin: "0 0 14px" }}>
+              {isReviewed ? "What reviewers look for" : "Checklist"}
+            </h2>
+            <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 10 }}>
+              {mission.rubric.map((criterion, i) => (
+                <li key={i} style={{ display: "flex", gap: 12, fontFamily: font.body, fontSize: 14.5, lineHeight: "22px", color: "var(--color-text-secondary)" }}>
+                  <span style={{ fontFamily: font.mono, fontSize: 11, lineHeight: "22px", color: "var(--color-text-tertiary)", fontVariantNumeric: "tabular-nums" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {criterion}
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
 
-      {/* Toast notification */}
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            backgroundColor: "#181818",
-            border: "1px solid #333333",
-            borderRadius: 10,
-            padding: "14px 16px",
-            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
-            zIndex: 1000,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            maxWidth: 360,
-          }}
+        <section
+          className="mission-section"
+          style={{ ...sectionStyle, borderTop: "1px solid var(--color-border-subtle)" }}
+          aria-labelledby="submit-heading"
         >
-          {toast.type === "success" ? (
-            <CheckCircle
-              style={{ width: 18, height: 18, color: "#22C55E", flexShrink: 0 }}
-            />
-          ) : toast.type === "error" ? (
-            <AlertCircle
-              style={{ width: 18, height: 18, color: "#EF4444", flexShrink: 0 }}
+          <h2 id="submit-heading" style={{ ...monoLabelStyle, margin: "0 0 16px" }}>
+            {latest === null ? "Submit your work" : data.canSubmit ? "Submit a new version" : "Your submission"}
+          </h2>
+          {data.canSubmit ? (
+            <SubmitForm
+              missionId={mission._id}
+              isReviewed={isReviewed}
+              initialLink={latest?.linkUrl ?? ""}
+              version={(latest?.version ?? 0) + 1}
+              onToast={showToast}
             />
           ) : (
-            <AlertTriangle
-              style={{ width: 18, height: 18, color: "#F59E0B", flexShrink: 0 }}
-            />
+            <SubmitStatus data={data} />
           )}
-          <span
+        </section>
+
+        {data.submissions.length > 0 && (
+          <section
+            className="mission-section"
+            style={{ ...sectionStyle, borderTop: "1px solid var(--color-border-subtle)" }}
+            aria-labelledby="history-heading"
+          >
+            <h2 id="history-heading" style={{ ...monoLabelStyle, margin: "0 0 16px" }}>
+              History
+            </h2>
+            <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 12 }}>
+              {data.submissions.map((submission) => (
+                <SubmissionEntry key={submission._id} submission={submission} rubric={mission.rubric} reviewType={mission.reviewType} />
+              ))}
+            </ol>
+          </section>
+        )}
+      </div>
+
+      <div style={{ height: 64 }} />
+      <Toast toast={toast} />
+    </div>
+  );
+}
+
+function SubmitStatus({ data }: { data: MissionDetail }) {
+  let message: string;
+  if (data.isAlumni) {
+    message = "Your cohort has ended. Your work is preserved here, but you can't submit new versions.";
+  } else if (!data.isStudent) {
+    message = "Only students in this track can submit work. You're seeing the learner view.";
+  } else if (data.module.status !== "published") {
+    message = "This module is a draft, so submissions are closed.";
+  } else if (data.status === "passed") {
+    message =
+      data.mission.reviewType === "reviewed"
+        ? "Your work passed. Nice job."
+        : "You've submitted this mission. It counts toward your module.";
+  } else {
+    message = "Your work is with the mentors. You'll see their feedback here once it's reviewed.";
+  }
+  return <p style={{ fontFamily: font.body, fontSize: 14.5, lineHeight: "22px", color: "var(--color-text-secondary)", margin: 0 }}>{message}</p>;
+}
+
+function SubmitForm({
+  missionId,
+  isReviewed,
+  initialLink,
+  version,
+  onToast,
+}: {
+  missionId: Id<"missions">;
+  isReviewed: boolean;
+  initialLink: string;
+  version: number;
+  onToast: ReturnType<typeof useToast>["showToast"];
+}) {
+  const generateUploadUrl = useMutation(api.missions.generateUploadUrl);
+  const submit = useMutation(api.missions.submit);
+  const [link, setLink] = useState(initialLink);
+  const [note, setNote] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  function pickFile(picked: File | undefined) {
+    setError(null);
+    if (!picked) return;
+    if (!ALLOWED_TYPES.includes(picked.type)) {
+      setError("Attach a PDF, PNG, JPG or WebP file.");
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
+    if (picked.size > MAX_FILE_BYTES) {
+      setError(`That file is ${formatBytes(picked.size)}. Files must be 10 MB or smaller.`);
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
+    setFile(picked);
+  }
+
+  function clearFile() {
+    setFile(null);
+    if (fileInput.current) fileInput.current.value = "";
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      let fileId: Id<"_storage"> | undefined;
+      if (file) {
+        const url = await generateUploadUrl({ missionId });
+        const response = await fetch(url, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+        if (!response.ok) throw new Error("upload failed");
+        fileId = ((await response.json()) as { storageId: Id<"_storage"> }).storageId;
+      }
+      const result = await submit({ missionId, linkUrl: link, fileId, fileName: file?.name, note: note || undefined });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      onToast(
+        result.moduleComplete
+          ? "Submitted. That finishes the module."
+          : isReviewed
+            ? "Submitted. Your mentors will review it."
+            : "Submitted. This mission is done.",
+      );
+    } catch (err) {
+      setError(err instanceof Error && err.message === "upload failed" ? "The file didn't upload. Check your connection and try again." : errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <div style={{ display: "grid", gap: 20 }}>
+        <div>
+          <label htmlFor="submission-link" style={labelStyle}>
+            Link to your work
+          </label>
+          <input
+            id="submission-link"
+            type="url"
+            inputMode="url"
+            required
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="https://www.figma.com/file/…"
+            maxLength={1000}
+            aria-describedby="submission-link-hint"
+            style={inputStyle}
+            {...focusHandlers}
+          />
+          <p id="submission-link-hint" style={hintStyle}>
+            Figma, Notion, Google Docs, GitHub — anything your mentors can open. Check the sharing settings.
+          </p>
+        </div>
+
+        <div>
+          <span id="submission-file-label" style={labelStyle}>
+            File <span style={{ color: "var(--color-text-tertiary)", fontWeight: 400 }}>(optional)</span>
+          </span>
+          {file ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid var(--color-border-strong)",
+                backgroundColor: "var(--color-bg-surface-2)",
+              }}
+            >
+              <Paperclip aria-hidden style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, fontFamily: font.body, fontSize: 14, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {file.name}
+              </span>
+              <span style={{ fontFamily: font.mono, fontSize: 11, color: "var(--color-text-tertiary)" }}>{formatBytes(file.size)}</span>
+              <button
+                type="button"
+                onClick={clearFile}
+                aria-label={`Remove ${file.name}`}
+                style={{ display: "inline-flex", border: "none", background: "none", padding: 4, cursor: "pointer", color: "var(--color-text-tertiary)" }}
+              >
+                <X aria-hidden style={{ width: 14, height: 14 }} />
+              </button>
+            </div>
+          ) : (
+            <label
+              htmlFor="submission-file"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                height: 64,
+                borderRadius: 10,
+                border: "1px dashed var(--color-border-strong)",
+                fontFamily: font.body,
+                fontSize: 14,
+                color: "var(--color-text-secondary)",
+                cursor: "pointer",
+              }}
+            >
+              <Paperclip aria-hidden style={{ width: 14, height: 14 }} />
+              Attach a PDF or image
+            </label>
+          )}
+          <input
+            ref={fileInput}
+            id="submission-file"
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
+            aria-labelledby="submission-file-label"
+            aria-describedby="submission-file-hint"
+            onChange={(e) => pickFile(e.target.files?.[0])}
+            className="sr-only"
+          />
+          <p id="submission-file-hint" style={hintStyle}>
+            PDF, PNG, JPG or WebP, up to 10 MB.
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="submission-note" style={labelStyle}>
+            Note for your mentor <span style={{ color: "var(--color-text-tertiary)", fontWeight: 400 }}>(optional)</span>
+          </label>
+          <textarea
+            id="submission-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            maxLength={NOTE_LIMIT}
+            placeholder={version > 1 ? "What did you change since the last version?" : "Anything you'd like feedback on?"}
+            style={{ ...inputStyle, height: "auto", padding: "12px 14px", lineHeight: "22px", resize: "vertical" }}
+            {...focusHandlers}
+          />
+        </div>
+
+        {error && (
+          <p role="alert" style={{ fontFamily: font.body, fontSize: 13, color: "#F87171", margin: 0 }}>
+            {error}
+          </p>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <button
+            type="submit"
+            disabled={busy || !link.trim()}
             style={{
-              fontFamily: font.body,
-              fontSize: "14.5px",
-              lineHeight: "22px",
-              fontWeight: 500,
+              height: 44,
+              padding: "0 24px",
+              borderRadius: 10,
+              border: "none",
+              backgroundColor: "var(--color-indigo)",
               color: "#FFFFFF",
+              fontFamily: font.body,
+              fontSize: 14.5,
+              fontWeight: 600,
+              cursor: busy || !link.trim() ? "not-allowed" : "pointer",
+              opacity: busy || !link.trim() ? 0.5 : 1,
             }}
           >
-            {toast.message}
+            {busy ? (file ? "Uploading…" : "Submitting…") : version > 1 ? `Submit version ${version}` : "Submit"}
+          </button>
+          <span style={{ fontFamily: font.body, fontSize: 12, color: "var(--color-text-tertiary)" }}>
+            {isReviewed ? "A mentor will pass it or ask for changes." : "This counts as done once you submit."}
           </span>
         </div>
-      )}
-    </div>
+      </div>
+    </form>
   );
 }
 
 function SubmissionEntry({
   submission,
-  isReviewed,
+  rubric,
+  reviewType,
 }: {
-  submission: MissionSubmission;
-  isReviewed: boolean;
+  submission: Submission;
+  rubric: string[];
+  reviewType: MissionDetail["mission"]["reviewType"];
 }) {
+  const review = submission.review;
+  const passed = review?.outcome === "passed";
   return (
-    <div>
-      {/* Header row */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
-        <div>
-          <p
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 600,
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-              margin: 0,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            Version {submission.version}
-          </p>
-          <p
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 500,
-              color: "var(--color-text-tertiary)",
-              margin: 0,
-              marginTop: 2,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            Submitted {formatDate(submission.submittedAt)}
-          </p>
-        </div>
-        <SubmissionStatusIndicator status={submission.status} />
+    <li style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 10, padding: "14px 16px", backgroundColor: "#0D0D0D" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={monoLabelStyle}>Version {submission.version}</span>
+        <span style={{ fontFamily: font.body, fontSize: 12, color: "var(--color-text-tertiary)" }}>{longDate(submission.submittedAt)}</span>
+        {submission.isLate && <span style={{ ...monoLabelStyle, color: "#FBBF24" }}>Late</span>}
+        <span style={{ marginLeft: "auto" }}>
+          <MissionStatusIndicator status={submission.status} reviewType={reviewType} size={12} />
+        </span>
       </div>
-
-      {/* Link row */}
-      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
-        <ExternalLink
-          style={{
-            width: 13,
-            height: 13,
-            color: "var(--color-text-tertiary)",
-            flexShrink: 0,
-          }}
-        />
+      <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
         <a
           href={submission.linkUrl}
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            fontFamily: font.body,
-            fontSize: 14,
-            lineHeight: "20px",
-            fontWeight: 400,
-            color: "var(--color-text-primary)",
-            textDecoration: "none",
-            transitionProperty: "color",
-            transitionDuration: "var(--duration-fast)",
-            transitionTimingFunction: "var(--ease-out-quart)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "var(--color-indigo-text)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "var(--color-text-primary)")
-          }
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: font.body, fontSize: 14, color: "#A5B4FC", textDecoration: "none", minWidth: 0 }}
         >
-          {submission.fileName || truncateUrl(submission.linkUrl)}
+          <ExternalLink aria-hidden style={{ width: 13, height: 13, flexShrink: 0 }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayUrl(submission.linkUrl)}</span>
         </a>
+        {submission.fileUrl && (
+          <a
+            href={submission.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: font.body, fontSize: 14, color: "#A5B4FC", textDecoration: "none" }}
+          >
+            <Paperclip aria-hidden style={{ width: 13, height: 13, flexShrink: 0 }} />
+            {submission.fileName ?? "Attachment"}
+          </a>
+        )}
+        {submission.note && (
+          <p style={{ fontFamily: font.body, fontSize: 13, lineHeight: "20px", color: "var(--color-text-tertiary)", margin: 0, whiteSpace: "pre-wrap" }}>
+            {submission.note}
+          </p>
+        )}
       </div>
-
-      {/* Review block */}
-      {isReviewed && submission.review && (
+      {review && (
         <div
           style={{
-            marginTop: 16,
-            backgroundColor: "var(--color-bg-surface-2)",
-            borderLeft: `3px solid ${
-              submission.review.outcome === "passed" ? "#333333" : "#F59E0B"
-            }`,
-            borderRadius: "0 8px 8px 0",
-            padding: "16px 20px",
+            marginTop: 12,
+            padding: "12px 14px",
+            borderRadius: 10,
+            border: `1px solid ${passed ? "rgba(34,197,94,0.25)" : "rgba(245,158,11,0.25)"}`,
+            backgroundColor: passed ? "rgba(34,197,94,0.06)" : "rgba(245,158,11,0.06)",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 8,
-            }}
-          >
-            <SectionLabel
-              color={
-                submission.review.outcome === "passed"
-                  ? "var(--color-text-tertiary)"
-                  : "#F59E0B"
-              }
-            >
-              Mentor Feedback
-            </SectionLabel>
-            <span
-              style={{
-                fontFamily: font.mono,
-                fontSize: 11,
-                lineHeight: "14px",
-                fontWeight: 500,
-                color: "var(--color-text-tertiary)",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {submission.review.reviewerName} · {formatDate(submission.review.reviewedAt)}
-            </span>
-          </div>
-          <p
-            style={{
-              fontFamily: font.body,
-              fontSize: "14.5px",
-              lineHeight: "24px",
-              fontWeight: 400,
-              color: "var(--color-text-secondary)",
-              margin: 0,
-              marginTop: 10,
-            }}
-          >
-            {submission.review.comment}
+          <p style={{ fontFamily: font.body, fontSize: 13, margin: 0, color: "var(--color-text-tertiary)" }}>
+            <span style={{ fontWeight: 500, color: passed ? "#4ADE80" : "#FBBF24" }}>{passed ? "Passed" : "Needs revision"}</span> ·{" "}
+            {review.reviewerName} · {shortDate(review.reviewedAt)}
           </p>
+          <p style={{ fontFamily: font.body, fontSize: 14.5, lineHeight: "22px", color: "var(--color-text-primary)", margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
+            {review.comment}
+          </p>
+          {review.rubricChecks && review.rubricChecks.length === rubric.length && rubric.length > 0 && (
+            <ul style={{ listStyle: "none", margin: "10px 0 0", padding: 0, display: "grid", gap: 4 }}>
+              {rubric.map((criterion, i) => {
+                const met = review.rubricChecks?.[i] === true;
+                return (
+                  <li key={i} style={{ display: "flex", gap: 8, fontFamily: font.body, fontSize: 13, lineHeight: "20px", color: met ? "var(--color-text-secondary)" : "var(--color-text-tertiary)" }}>
+                    <span aria-hidden style={{ color: met ? "#4ADE80" : "var(--color-text-tertiary)" }}>{met ? "✓" : "–"}</span>
+                    <span>
+                      <span className="sr-only">{met ? "Met: " : "Not yet: "}</span>
+                      {criterion}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       )}
-    </div>
+    </li>
   );
 }

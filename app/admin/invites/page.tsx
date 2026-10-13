@@ -1,10 +1,26 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CheckCircle, Copy } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
+import type { FunctionReturnType } from "convex/server";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import {
+  CO_MENTOR_DEFAULT_PERMISSIONS,
+  PLATFORM_ROLE_PRESETS,
+  TRACK_PERMISSION_INFO,
+  TRACK_ROLE_INFO,
+  type PlatformPermission,
+  type PlatformRole,
+  type TrackPermission,
+  type TrackRole,
+} from "@/convex/lib/permissions";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { PrimaryButton } from "@/components/ui/custom/buttons";
-import { mockInvites } from "@/lib/mock-admin-data";
+import { hasPlatformPermission } from "@/lib/access";
+import { PermissionCheckbox, PlatformAccessEditor } from "@/components/admin/platform-access-editor";
 
 const font = {
   display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
@@ -29,6 +45,45 @@ const fieldLabelStyle: React.CSSProperties = {
   marginBottom: 8,
 };
 
+const controlStyle: React.CSSProperties = {
+  height: 40,
+  width: "100%",
+  backgroundColor: "#181818",
+  border: "1px solid #333333",
+  borderRadius: 10,
+  padding: "0 14px",
+  fontFamily: font.body,
+  fontSize: 14,
+  color: "#FFFFFF",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const smallButtonStyle: React.CSSProperties = {
+  height: 28,
+  padding: "0 10px",
+  borderRadius: 10,
+  backgroundColor: "transparent",
+  color: "var(--color-text-primary)",
+  border: "1px solid var(--color-border-strong)",
+  fontFamily: font.body,
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
+const focusHandlers = {
+  onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)";
+    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)";
+  },
+  onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = "#333333";
+    e.currentTarget.style.boxShadow = "none";
+  },
+};
+
 type ToastData = {
   message: string;
   type: "success" | "error";
@@ -39,15 +94,59 @@ const toastDotColor: Record<ToastData["type"], string> = {
   error: "#EF4444",
 };
 
+type InvitableTrack = FunctionReturnType<typeof api.tracks.listForInviting>[number];
+type InvitationItem = FunctionReturnType<typeof api.invitations.listForManager>["page"][number];
+
+type TrackGrantDraft = {
+  trackId: Id<"tracks">;
+  role: TrackRole;
+  cohortId?: Id<"cohorts">;
+  permissions: TrackPermission[];
+};
+
+const statusStyle: Record<InvitationItem["status"], { label: string; color: string; background: string }> = {
+  pending: { label: "Sending", color: "#FBBF24", background: "rgba(251,191,36,0.10)" },
+  sending: { label: "Sending", color: "#FBBF24", background: "rgba(251,191,36,0.10)" },
+  sent: { label: "Sent", color: "#A5B4FC", background: "rgba(99,102,241,0.12)" },
+  accepted: { label: "Accepted", color: "#4ADE80", background: "rgba(34,197,94,0.10)" },
+  revoked: { label: "Revoked", color: "#737373", background: "rgba(255,255,255,0.04)" },
+  failed: { label: "Failed", color: "#F87171", background: "rgba(239,68,68,0.10)" },
+};
+
+function errorMessage(err: unknown) {
+  return err instanceof ConvexError ? String(err.data) : "Something went wrong. Please try again.";
+}
+
+function allowedRoles(track: InvitableTrack): TrackRole[] {
+  const roles: TrackRole[] = [];
+  if (track.canInviteStudents) roles.push("student");
+  if (track.canAddCoMentor) roles.push("co_mentor");
+  if (track.canAssignLead) roles.push("lead_mentor");
+  return roles;
+}
+
+function defaultGrant(track: InvitableTrack, role: TrackRole): TrackGrantDraft {
+  return {
+    trackId: track._id,
+    role,
+    cohortId: role === "student" ? track.cohorts[0]?._id : undefined,
+    permissions:
+      role === "co_mentor"
+        ? CO_MENTOR_DEFAULT_PERMISSIONS.filter((p) => track.grantablePermissions.includes(p))
+        : [],
+  };
+}
+
 export default function InvitesPage() {
-  const [selectedTrack, setSelectedTrack] = useState("Design Lab");
-  const [selectedCohort, setSelectedCohort] = useState("cohort-01");
-  const [selectedLimit, setSelectedLimit] = useState(10);
-  const [limitError, setLimitError] = useState<string | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [inviteList, setInviteList] = useState(mockInvites);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const me = useQuery(api.users.me);
+  const tracks = useQuery(api.tracks.listForInviting);
+  const createInvitation = useMutation(api.invitations.create);
+
+  const [email, setEmail] = useState("");
+  const [platformRole, setPlatformRole] = useState<PlatformRole>("member");
+  const [permissions, setPermissions] = useState<PlatformPermission[]>([]);
+  const [trackGrants, setTrackGrants] = useState<TrackGrantDraft[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
 
   const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
@@ -60,372 +159,177 @@ export default function InvitesPage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  function validateLimit(value: number): string | null {
-    if (value < 1) return "Usage limit must be at least 1";
-    if (value > 100) return "Usage limit cannot exceed 100";
+  if (!me || tracks === undefined) {
     return null;
   }
 
-  function handleLimitChange(value: number) {
-    setSelectedLimit(value);
-    setLimitError(validateLimit(value));
+  const canGrantPlatform = hasPlatformPermission(me, "invites.manage");
+  const unusedTracks = tracks.filter(
+    (track) => allowedRoles(track).length > 0 && !trackGrants.some((g) => g.trackId === track._id),
+  );
+
+  function addTrack(trackId: string) {
+    const track = tracks?.find((t) => t._id === trackId);
+    if (!track) return;
+    setTrackGrants((prev) => [...prev, defaultGrant(track, allowedRoles(track)[0])]);
   }
 
-  function handleGenerate() {
-    const error = validateLimit(selectedLimit);
-    if (error) {
-      setLimitError(error);
+  function updateGrant(trackId: Id<"tracks">, update: (grant: TrackGrantDraft) => TrackGrantDraft) {
+    setTrackGrants((prev) => prev.map((g) => (g.trackId === trackId ? update(g) : g)));
+  }
+
+  function removeGrant(trackId: Id<"tracks">) {
+    setTrackGrants((prev) => prev.filter((g) => g.trackId !== trackId));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const missingCohort = trackGrants.find((g) => g.role === "student" && !g.cohortId);
+    if (missingCohort) {
+      const trackName = tracks?.find((t) => t._id === missingCohort.trackId)?.name ?? "a track";
+      showToast(`Pick a cohort for ${trackName}`, "error");
       return;
     }
-    const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const prefix = selectedTrack === "Design Lab" ? "DL" : "OSL";
-    const code = `BDA-${prefix}-2025-${suffix}`;
-    setGeneratedCode(code);
 
-    const cohortNames: Record<string, string> = {
-      "cohort-01": "Cohort 01",
-      "cohort-02": "Cohort 02",
-      "cohort-03": "Cohort 03",
-    };
-
-    const newInvite = {
-      id: `inv-${Date.now()}`,
-      code,
-      track: selectedTrack,
-      cohortId: selectedCohort,
-      cohortName: cohortNames[selectedCohort] || selectedCohort,
-      createdAt: new Date().toISOString().split("T")[0],
-      expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
-      usageCount: 0,
-      usageLimit: selectedLimit,
-      status: "active" as "active" | "inactive",
-      createdBy: "Adeyemi Matthew",
-    };
-
-    setInviteList((prev) => [newInvite, ...prev]);
-    showToast("Invite link created");
+    setSubmitting(true);
+    try {
+      const result = await createInvitation({
+        email,
+        platformRole: canGrantPlatform ? platformRole : "member",
+        permissions: canGrantPlatform ? permissions : [],
+        trackGrants: trackGrants.map((g) => ({
+          trackId: g.trackId,
+          role: g.role,
+          cohortId: g.role === "student" ? g.cohortId : undefined,
+          permissions: g.role === "co_mentor" ? g.permissions : [],
+        })),
+      });
+      showToast(
+        result === "sent"
+          ? `Invitation sent to ${email.trim()}`
+          : `${email.trim()} already has an account, so their access was updated`,
+      );
+      setEmail("");
+      setPlatformRole("member");
+      setPermissions([]);
+      setTrackGrants([]);
+    } catch (err) {
+      showToast(errorMessage(err), "error");
+    } finally {
+      setSubmitting(false);
+    }
   }
-
-  function handleCopy(code: string, id: string) {
-    const url = `https://app.bitdesigners.africa/join/${code}`;
-    navigator.clipboard.writeText(url).then(
-      () => {
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-        showToast("Copied to clipboard");
-      },
-      () => {
-        showToast("Could not copy — copy the link manually", "error");
-      }
-    );
-  }
-
-  function handleDeactivate(inviteId: string) {
-    setInviteList((prev) => prev.filter((inv) => inv.id !== inviteId));
-    setConfirmingId(null);
-    showToast("Invite deactivated");
-  }
-
-  const activeInvites = inviteList.filter((inv) => inv.status === "active");
 
   return (
     <div>
       <style>{`
-        input[type=number]::-webkit-outer-spin-button,
-        input[type=number]::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-        }
-        input[type=number] { -moz-appearance: textfield; }
         @keyframes toast-enter {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
       <h1 style={{ fontFamily: font.display, fontSize: 36, lineHeight: "42px", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: 0, marginBottom: 32 }}>
-        Invite Links
+        Invitations
       </h1>
 
-      {/* Generate card */}
-      <div style={{ ...cardStyle, padding: 24, marginBottom: 32 }}>
-        <SectionLabel>GENERATE NEW INVITE</SectionLabel>
+      <form onSubmit={handleSubmit} style={{ ...cardStyle, padding: 24, marginBottom: 32 }}>
+        <SectionLabel>INVITE SOMEONE</SectionLabel>
 
         <div style={{ marginTop: 20 }}>
-          <label style={fieldLabelStyle}>Track</label>
-          <div style={{ display: "flex", gap: 0, border: "1px solid #333333", borderRadius: 8, overflow: "hidden", width: "fit-content" }}>
-            {(["Design Lab", "Open Source Lab"] as const).map((track, i) => (
-              <button
-                key={track}
-                onClick={() => setSelectedTrack(track)}
-                style={{
-                  height: 36,
-                  padding: "0 20px",
-                  border: "none",
-                  borderRight: i === 0 ? "1px solid #333333" : "none",
-                  borderRadius: 0,
-                  fontFamily: font.body,
-                  fontSize: 14,
-                  fontWeight: selectedTrack === track ? 500 : 400,
-                  color: selectedTrack === track ? "#A5B4FC" : "#737373",
-                  backgroundColor: selectedTrack === track ? "rgba(99,102,241,0.12)" : "transparent",
-                  cursor: "pointer",
-                  transition: "background-color 120ms ease",
-                }}
-              >
-                {track}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 20 }}>
-          <label style={fieldLabelStyle}>Cohort</label>
-          <div style={{ position: "relative" }}>
-            <select
-              value={selectedCohort}
-              onChange={(e) => setSelectedCohort(e.target.value)}
-              style={{
-                height: 40,
-                width: "100%",
-                backgroundColor: "#181818",
-                border: "1px solid #333333",
-                borderRadius: 10,
-                padding: "0 14px",
-                paddingRight: 40,
-                fontFamily: font.body,
-                fontSize: 14,
-                color: "#FFFFFF",
-                cursor: "pointer",
-                outline: "none",
-                appearance: "none",
-                WebkitAppearance: "none",
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "#333333"; e.currentTarget.style.boxShadow = "none"; }}
-            >
-              <option value="cohort-01">Cohort 01</option>
-              <option value="cohort-02">Cohort 02</option>
-              <option value="cohort-03">Cohort 03</option>
-            </select>
-            <svg
-              style={{
-                position: "absolute",
-                right: 14,
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: 16,
-                height: 16,
-                color: "#737373",
-                pointerEvents: "none",
-              }}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 20 }}>
-          <label style={fieldLabelStyle}>Usage limit</label>
+          <label style={fieldLabelStyle}>Email</label>
           <input
-            type="number"
-            min={1}
-            max={100}
-            value={selectedLimit}
-            onChange={(e) => handleLimitChange(Number(e.target.value))}
-            style={{
-              height: 40,
-              width: "100%",
-              backgroundColor: "#181818",
-              border: `1px solid ${limitError ? "rgba(239,68,68,0.55)" : "#333333"}`,
-              borderRadius: 10,
-              padding: "0 14px",
-              fontFamily: font.body,
-              fontSize: 14,
-              color: "#FFFFFF",
-              outline: "none",
-              appearance: "none",
-              WebkitAppearance: "none",
-              MozAppearance: "textfield" as React.CSSProperties["MozAppearance"],
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = limitError ? "rgba(239,68,68,0.55)" : "rgba(99,102,241,0.70)";
-              e.currentTarget.style.boxShadow = limitError ? "0 0 0 3px rgba(239,68,68,0.15)" : "0 0 0 3px rgba(99,102,241,0.15)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = limitError ? "rgba(239,68,68,0.55)" : "#333333";
-              e.currentTarget.style.boxShadow = "none";
-            }}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            required
+            style={controlStyle}
+            {...focusHandlers}
           />
-          {limitError ? (
-            <p style={{ fontFamily: font.body, fontSize: 12, color: "#F87171", margin: 0, marginTop: 6 }}>
-              {limitError}
+        </div>
+
+        {canGrantPlatform && (
+          <div style={{ marginTop: 24 }}>
+            <label style={fieldLabelStyle}>Platform role</label>
+            <PlatformAccessEditor
+              me={me}
+              platformRole={platformRole}
+              permissions={permissions}
+              onChange={(role, perms) => {
+                setPlatformRole(role);
+                setPermissions(perms);
+              }}
+            />
+          </div>
+        )}
+
+        <div style={{ marginTop: 24 }}>
+          <label style={fieldLabelStyle}>Track access</label>
+          {trackGrants.length === 0 && (
+            <p style={{ fontFamily: font.body, fontSize: 13, color: "#737373", margin: 0, marginBottom: 12 }}>
+              {tracks.length === 0
+                ? "There are no tracks you can invite people into."
+                : "Add a track to make this person a student or mentor there."}
             </p>
-          ) : (
-            <p style={{ fontFamily: font.body, fontSize: 12, color: "#737373", margin: 0, marginTop: 6 }}>
-              Number of learners who can use this link
-            </p>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {trackGrants.map((grant) => {
+              const track = tracks.find((t) => t._id === grant.trackId);
+              if (!track) return null;
+              return (
+                <TrackGrantRow
+                  key={grant.trackId}
+                  track={track}
+                  grant={grant}
+                  onChangeRole={(role) => updateGrant(track._id, () => defaultGrant(track, role))}
+                  onChangeCohort={(cohortId) => updateGrant(track._id, (g) => ({ ...g, cohortId }))}
+                  onTogglePermission={(permission) =>
+                    updateGrant(track._id, (g) => ({
+                      ...g,
+                      permissions: g.permissions.includes(permission)
+                        ? g.permissions.filter((p) => p !== permission)
+                        : [...g.permissions, permission],
+                    }))
+                  }
+                  onRemove={() => removeGrant(track._id)}
+                />
+              );
+            })}
+          </div>
+
+          {unusedTracks.length > 0 && (
+            <div style={{ position: "relative", marginTop: 12, maxWidth: 280 }}>
+              <Plus style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "#737373", pointerEvents: "none" }} />
+              <select
+                value=""
+                onChange={(e) => addTrack(e.target.value)}
+                style={{ ...controlStyle, paddingLeft: 32, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                {...focusHandlers}
+              >
+                <option value="" disabled>
+                  Add a track
+                </option>
+                {unusedTracks.map((track) => (
+                  <option key={track._id} value={track._id}>
+                    {track.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 
-        <div style={{ marginTop: 20 }}>
-          <PrimaryButton fullWidth onClick={handleGenerate}>Generate Invite Link</PrimaryButton>
+        <div style={{ marginTop: 24 }}>
+          {/* PrimaryButton renders a type-less <button>, so it submits the form. */}
+          <PrimaryButton fullWidth disabled={submitting || !email.trim()}>
+            {submitting ? "Sending..." : "Send invitation"}
+          </PrimaryButton>
         </div>
+      </form>
 
-        {generatedCode && (
-          <div style={{ marginTop: 12, backgroundColor: "#181818", border: "1px solid #242424", borderRadius: 10, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <div>
-              <SectionLabel>INVITE CODE</SectionLabel>
-              <p style={{ fontFamily: font.mono, fontSize: 16, lineHeight: "22px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0, marginTop: 6 }}>
-                {generatedCode}
-              </p>
-            </div>
-            <button
-              onClick={() => handleCopy(generatedCode, "generated")}
-              className="inline-flex items-center justify-center"
-              style={{
-                height: 32, padding: "0 12px", borderRadius: 10,
-                backgroundColor: "transparent",
-                color: copiedId === "generated" ? "var(--color-success-text)" : "#FFFFFF",
-                border: copiedId === "generated" ? "1px solid var(--color-success-border)" : "1px solid #333333",
-                fontFamily: font.body, fontSize: 13, fontWeight: 500, gap: 6, cursor: "pointer", whiteSpace: "nowrap",
-              }}
-            >
-              {copiedId === "generated" ? (<><CheckCircle style={{ width: 14, height: 14 }} />Copied!</>) : (<><Copy style={{ width: 14, height: 14 }} />Copy Link</>)}
-            </button>
-          </div>
-        )}
-      </div>
+      <InvitationList onToast={showToast} />
 
-      {/* Existing invites */}
-      <SectionLabel>ACTIVE INVITES</SectionLabel>
-      <div style={{ marginTop: 16, border: "1px solid #242424", borderRadius: 12, overflow: "hidden" }}>
-        {activeInvites.length === 0 ? (
-          <div style={{ padding: 24, textAlign: "center" }}>
-            <p style={{ fontFamily: font.body, fontSize: 14, color: "#737373", margin: 0 }}>
-              No active invite links.
-            </p>
-          </div>
-        ) : (
-          activeInvites.map((invite, i) => (
-            <div
-              key={invite.id}
-              style={{
-                padding: "16px 20px",
-                borderBottom: i < activeInvites.length - 1 ? "1px solid #242424" : "none",
-                transitionProperty: "background-color",
-                transitionDuration: "var(--duration-fast)",
-                transitionTimingFunction: "var(--ease-out-quart)",
-                display: "flex",
-                alignItems: "center",
-                gap: 20,
-                flexWrap: "wrap",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1C1C1C"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-            >
-              {/* Left: code + meta */}
-              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <p style={{ fontFamily: font.mono, fontSize: 14, lineHeight: "20px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>
-                  {invite.code}
-                </p>
-                <p style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 400, color: "var(--color-text-tertiary)", margin: 0, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>
-                  https://app.bitdesigners.africa/join/{invite.code}
-                </p>
-                <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  {[invite.track.toUpperCase(), invite.cohortName, `Expires ${new Date(invite.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`].map((tag) => (
-                    <span key={tag} style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)", backgroundColor: "var(--color-bg-surface-3)", border: "1px solid var(--color-border-subtle)", borderRadius: 999, padding: "3px 8px" }}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Center: usage count */}
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, flexShrink: 0 }}>
-                <span style={{ fontFamily: font.display, fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
-                  {invite.usageCount} / {invite.usageLimit}
-                </span>
-                <span style={{ fontFamily: font.body, fontSize: 12, fontWeight: 400, color: "var(--color-text-tertiary)" }}>
-                  used
-                </span>
-              </div>
-
-              {/* Right: actions */}
-              <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
-                {confirmingId === invite.id ? (
-                  <>
-                    <span style={{ fontFamily: font.body, fontSize: 13, color: "#737373" }}>
-                      Deactivate this invite?
-                    </span>
-                    <button
-                      onClick={() => handleDeactivate(invite.id)}
-                      className="inline-flex items-center justify-center"
-                      style={{
-                        height: 28, padding: "0 12px", borderRadius: 10, backgroundColor: "transparent",
-                        color: "#F87171", border: "1px solid rgba(239,68,68,0.35)",
-                        fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
-                      }}
-                    >
-                      Yes, deactivate
-                    </button>
-                    <button
-                      onClick={() => setConfirmingId(null)}
-                      className="inline-flex items-center justify-center"
-                      style={{
-                        height: 28, padding: "0 12px", borderRadius: 0, backgroundColor: "transparent",
-                        color: "var(--color-text-secondary)", border: "none",
-                        fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => handleCopy(invite.code, invite.id)}
-                      className="inline-flex items-center justify-center"
-                      style={{
-                        height: 28, padding: "0 10px", borderRadius: 10, backgroundColor: "transparent",
-                        color: copiedId === invite.id ? "var(--color-success-text)" : "var(--color-text-primary)",
-                        border: `1px solid ${copiedId === invite.id ? "var(--color-success-border)" : "var(--color-border-strong)"}`,
-                        fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
-                        transitionProperty: "background-color, border-color, color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
-                      }}
-                      onMouseEnter={(e) => { if (copiedId !== invite.id) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                    >
-                      {copiedId === invite.id ? "Copied!" : "Copy"}
-                    </button>
-                    <button
-                      onClick={() => setConfirmingId(invite.id)}
-                      className="inline-flex items-center justify-center"
-                      style={{
-                        height: 28, padding: "0 10px", borderRadius: 10, backgroundColor: "transparent",
-                        color: "var(--color-text-primary)", border: "1px solid var(--color-border-strong)",
-                        fontFamily: font.body, fontSize: 13, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
-                        transitionProperty: "background-color, border-color, color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-danger-border)"; e.currentTarget.style.color = "var(--color-danger-text)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.color = "var(--color-text-primary)"; }}
-                    >
-                      Deactivate
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Toast */}
       {toast && (
         <div
           role={toast.type === "error" ? "alert" : "status"}
@@ -447,20 +351,266 @@ export default function InvitesPage() {
             animation: "toast-enter 240ms cubic-bezier(0.25, 1, 0.5, 1)",
           }}
         >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              backgroundColor: toastDotColor[toast.type],
-              flexShrink: 0,
-            }}
-          />
-          <span style={{ fontFamily: font.body, fontSize: 14, color: "#FFFFFF" }}>
-            {toast.message}
-          </span>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: toastDotColor[toast.type], flexShrink: 0 }} />
+          <span style={{ fontFamily: font.body, fontSize: 14, color: "#FFFFFF" }}>{toast.message}</span>
         </div>
       )}
     </div>
+  );
+}
+
+function TrackGrantRow({
+  track,
+  grant,
+  onChangeRole,
+  onChangeCohort,
+  onTogglePermission,
+  onRemove,
+}: {
+  track: InvitableTrack;
+  grant: TrackGrantDraft;
+  onChangeRole: (role: TrackRole) => void;
+  onChangeCohort: (cohortId: Id<"cohorts">) => void;
+  onTogglePermission: (permission: TrackPermission) => void;
+  onRemove: () => void;
+}) {
+  const roles = allowedRoles(track);
+
+  return (
+    <div style={{ border: "1px solid #242424", borderRadius: 12, padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{track.name}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", border: "1px solid #333333", borderRadius: 8, overflow: "hidden" }}>
+            {roles.map((role, i) => {
+              const selected = grant.role === role;
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => onChangeRole(role)}
+                  style={{
+                    height: 32,
+                    padding: "0 14px",
+                    border: "none",
+                    borderRight: i < roles.length - 1 ? "1px solid #333333" : "none",
+                    fontFamily: font.body,
+                    fontSize: 13,
+                    fontWeight: selected ? 500 : 400,
+                    color: selected ? "#A5B4FC" : "#737373",
+                    backgroundColor: selected ? "rgba(99,102,241,0.12)" : "transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  {TRACK_ROLE_INFO[role].label}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${track.name}`}
+            style={{ ...smallButtonStyle, height: 32, width: 32, padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <X style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
+      </div>
+
+      <p style={{ fontFamily: font.body, fontSize: 12, color: "#737373", margin: 0, marginTop: 8 }}>
+        {TRACK_ROLE_INFO[grant.role].description}
+        {grant.role === "lead_mentor" && ". An existing lead becomes a co-mentor."}
+      </p>
+
+      {grant.role === "student" && (
+        <div style={{ marginTop: 12 }}>
+          <label style={fieldLabelStyle}>Cohort</label>
+          {track.cohorts.length === 0 ? (
+            <p style={{ fontFamily: font.body, fontSize: 13, color: "#F87171", margin: 0 }}>
+              This track has no open cohorts yet. Create one first.
+            </p>
+          ) : (
+            <select
+              value={grant.cohortId ?? ""}
+              onChange={(e) => onChangeCohort(e.target.value as Id<"cohorts">)}
+              style={{ ...controlStyle, cursor: "pointer" }}
+              {...focusHandlers}
+            >
+              {track.cohorts.map((cohort) => (
+                <option key={cohort._id} value={cohort._id}>
+                  {cohort.name}
+                  {cohort.status === "draft" ? " (draft)" : ""}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {grant.role === "co_mentor" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8, marginTop: 12 }}>
+          {track.grantablePermissions.map((permission) => (
+            <PermissionCheckbox
+              key={permission}
+              label={TRACK_PERMISSION_INFO[permission].label}
+              description={TRACK_PERMISSION_INFO[permission].description}
+              checked={grant.permissions.includes(permission)}
+              onChange={() => onTogglePermission(permission)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function describeAccess(invitation: InvitationItem) {
+  const parts: string[] = [];
+  if (invitation.platformRole !== "member") {
+    parts.push(PLATFORM_ROLE_PRESETS[invitation.platformRole].label);
+  } else if (invitation.permissions.length > 0) {
+    parts.push(`${invitation.permissions.length} platform permission${invitation.permissions.length === 1 ? "" : "s"}`);
+  }
+  invitation.trackGrants.forEach((grant, i) => {
+    parts.push(`${TRACK_ROLE_INFO[grant.role].label} · ${invitation.trackNames[i] ?? "Track"}`);
+  });
+  return parts;
+}
+
+function InvitationList({ onToast }: { onToast: (message: string, type?: ToastData["type"]) => void }) {
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.invitations.listForManager,
+    {},
+    { initialNumItems: 20 },
+  );
+  const revoke = useMutation(api.invitations.revoke);
+  const resend = useMutation(api.invitations.resend);
+  const [confirmingId, setConfirmingId] = useState<Id<"invitations"> | null>(null);
+  const [busyId, setBusyId] = useState<Id<"invitations"> | null>(null);
+
+  async function run(invitationId: Id<"invitations">, action: () => Promise<null>, success: string) {
+    setBusyId(invitationId);
+    try {
+      await action();
+      onToast(success);
+    } catch (err) {
+      onToast(errorMessage(err), "error");
+    } finally {
+      setBusyId(null);
+      setConfirmingId(null);
+    }
+  }
+
+  return (
+    <>
+      <SectionLabel>INVITATIONS</SectionLabel>
+      <div style={{ marginTop: 16, border: "1px solid #242424", borderRadius: 12, overflow: "hidden" }}>
+        {status === "LoadingFirstPage" ? (
+          <p style={{ fontFamily: font.body, fontSize: 14, color: "#737373", margin: 0, padding: 24, textAlign: "center" }}>
+            Loading...
+          </p>
+        ) : results.length === 0 ? (
+          <p style={{ fontFamily: font.body, fontSize: 14, color: "#737373", margin: 0, padding: 24, textAlign: "center" }}>
+            No invitations yet.
+          </p>
+        ) : (
+          results.map((invitation, i) => {
+            const badge = statusStyle[invitation.status];
+            const canRevoke = ["pending", "sending", "sent", "failed"].includes(invitation.status);
+            const canResend = invitation.status === "sent" || invitation.status === "failed";
+            const busy = busyId === invitation._id;
+            return (
+              <div
+                key={invitation._id}
+                style={{
+                  padding: "16px 20px",
+                  borderBottom: i < results.length - 1 ? "1px solid #242424" : "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 20,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>
+                      {invitation.email}
+                    </span>
+                    <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: badge.color, backgroundColor: badge.background, borderRadius: 999, padding: "3px 8px" }}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                    {describeAccess(invitation).map((tag) => (
+                      <span key={tag} style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)", backgroundColor: "var(--color-bg-surface-3)", border: "1px solid var(--color-border-subtle)", borderRadius: 999, padding: "3px 8px" }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <p style={{ fontFamily: font.body, fontSize: 12, color: "var(--color-text-tertiary)", margin: 0, marginTop: 6 }}>
+                    {invitation.invitedByName ? `Invited by ${invitation.invitedByName} · ` : ""}
+                    {new Date(invitation._creationTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                  {invitation.status === "failed" && invitation.error && (
+                    <p style={{ fontFamily: font.body, fontSize: 12, color: "#F87171", margin: 0, marginTop: 6 }}>
+                      {invitation.error}
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+                  {confirmingId === invitation._id ? (
+                    <>
+                      <span style={{ fontFamily: font.body, fontSize: 13, color: "#737373" }}>Revoke this invitation?</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => run(invitation._id, () => revoke({ invitationId: invitation._id }), "Invitation revoked")}
+                        style={{ ...smallButtonStyle, color: "#F87171", border: "1px solid rgba(239,68,68,0.35)" }}
+                      >
+                        Yes, revoke
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingId(null)}
+                        style={{ ...smallButtonStyle, border: "none", color: "var(--color-text-secondary)" }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {canResend && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => run(invitation._id, () => resend({ invitationId: invitation._id }), "Invitation resent")}
+                          style={smallButtonStyle}
+                        >
+                          Resend
+                        </button>
+                      )}
+                      {canRevoke && (
+                        <button type="button" onClick={() => setConfirmingId(invitation._id)} style={smallButtonStyle}>
+                          Revoke
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+      {status === "CanLoadMore" && (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+          <button type="button" onClick={() => loadMore(20)} style={smallButtonStyle}>
+            Load more
+          </button>
+        </div>
+      )}
+    </>
   );
 }

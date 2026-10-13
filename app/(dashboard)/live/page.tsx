@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { Calendar, User, BookOpen, PlayCircle, X, CalendarPlus, CheckCircle, AlertCircle } from "lucide-react";
-import { SectionLabel, PrimaryButton, OutlineButton } from "@/components/ui/custom";
-import { mockSessions } from "@/lib/mock-live-data";
-import type { LiveSession } from "@/lib/mock-live-data";
+import { PrimaryButton, OutlineButton } from "@/components/ui/custom";
+import { api } from "@/convex/_generated/api";
+import { workshopPhase } from "@/convex/lib/workshops";
 import { generateICS } from "@/lib/ics-helper";
+import { useLearnerTrack } from "@/lib/use-learner-track";
+import { useNow } from "@/lib/use-now";
+import { hostTimeLabel, sessionDay, sessionTime } from "@/lib/sessions";
+import { videoEmbedUrl } from "@/lib/video";
+import { LoadingLine, PageMessage, TrackChips } from "@/components/learn/ui";
+
+type LiveSession = NonNullable<FunctionReturnType<typeof api.workshops.listForLearner>>["sessions"][number];
 
 // ---------------------------------------------------------------------------
 // Font shortcuts
@@ -30,22 +40,12 @@ const cardStyle: React.CSSProperties = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatSessionDate(dateStr: string, timeStr: string, tz: string): string {
-  const d = new Date(dateStr + "T" + timeStr + ":00");
-  const dayName = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
-  const month = d.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
-  const day = d.getDate();
-  const hour = d.getHours();
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  const min = d.getMinutes();
-  const minStr = min === 0 ? "" : `:${String(min).padStart(2, "0")}`;
-  return `${dayName}, ${month} ${day} · ${hour12}${minStr} ${ampm} ${tz}`;
+function formatSessionDate(ms: number): string {
+  return `${sessionDay(ms)} · ${sessionTime(ms)}`;
 }
 
-function formatRecordingDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase();
+function formatRecordingDate(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase();
 }
 
 type CountdownResult =
@@ -53,8 +53,7 @@ type CountdownResult =
   | "starting-soon"
   | { days: number; hours: number; minutes: number; seconds: number };
 
-function getCountdown(dateStr: string, timeStr: string): CountdownResult {
-  const target = new Date(dateStr + "T" + timeStr + ":00").getTime();
+function getCountdown(target: number): CountdownResult {
   const now = Date.now();
   const diff = target - now;
 
@@ -100,29 +99,25 @@ function DurationBadge({ minutes }: { minutes: number }) {
   );
 }
 
-function SessionTags({ tags, gap = 6 }: { tags: string[]; gap?: number }) {
+function ModuleLink({ module: mod }: { module: LiveSession["module"] }) {
+  if (!mod) return null;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap }}>
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          style={{
-            backgroundColor: "var(--color-bg-surface-2)",
-            border: "1px solid var(--color-border-subtle)",
-            borderRadius: 999,
-            padding: "4px 10px",
-            fontFamily: font.mono,
-            fontSize: 10,
-            lineHeight: "12px",
-            fontWeight: 500,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--color-text-tertiary)",
-          }}
-        >
-          {tag}
-        </span>
-      ))}
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <BookOpen style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+      <Link
+        href={`/learn/${mod.slug}`}
+        style={{
+          fontFamily: font.mono,
+          fontSize: 11,
+          lineHeight: "14px",
+          fontWeight: 500,
+          textTransform: "uppercase",
+          color: "var(--color-text-tertiary)",
+          textDecoration: "none",
+        }}
+      >
+        {mod.title}
+      </Link>
     </div>
   );
 }
@@ -171,16 +166,14 @@ function CountdownBlock({ value, label }: { value: number; label: string }) {
 }
 
 function CountdownTimer({ session }: { session: LiveSession }) {
-  const [countdown, setCountdown] = useState<CountdownResult>(() =>
-    getCountdown(session.date, session.time)
-  );
+  const [countdown, setCountdown] = useState<CountdownResult>(() => getCountdown(session.scheduledAt));
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCountdown(getCountdown(session.date, session.time));
+      setCountdown(getCountdown(session.scheduledAt));
     }, 1000);
     return () => clearInterval(interval);
-  }, [session.date, session.time]);
+  }, [session.scheduledAt]);
 
   if (!countdown) return null;
 
@@ -309,12 +302,14 @@ function TabButton({
 
 function UpcomingCard({
   session,
+  isLive,
   onToast,
 }: {
   session: LiveSession;
+  isLive: boolean;
   onToast: (message: string, type: "success" | "error") => void;
 }) {
-  const isLive = session.status === "live";
+  const hostTime = hostTimeLabel(session.scheduledAt, session.timezone);
 
   return (
     <div
@@ -328,9 +323,29 @@ function UpcomingCard({
         e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
       }}
     >
-      {/* Top row — duration badge only, right-aligned */}
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "flex-start" }}>
-        <DurationBadge minutes={session.duration} />
+      <div style={{ display: "flex", justifyContent: isLive ? "space-between" : "flex-end", alignItems: "center" }}>
+        {isLive && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: font.mono,
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.10em",
+              textTransform: "uppercase",
+              color: "#4ADE80",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: "#22C55E", animation: "livePulse 1.6s ease-in-out infinite" }}
+            />
+            Open now
+          </span>
+        )}
+        <DurationBadge minutes={session.durationMinutes} />
       </div>
 
       {/* Title */}
@@ -349,21 +364,22 @@ function UpcomingCard({
         {session.title}
       </h3>
 
-      {/* Description */}
-      <p
-        className="line-clamp-2"
-        style={{
-          fontFamily: font.body,
-          fontSize: "14.5px",
-          lineHeight: "22px",
-          fontWeight: 400,
-          color: "var(--color-text-secondary)",
-          margin: 0,
-          marginTop: 8,
-        }}
-      >
-        {session.description}
-      </p>
+      {session.description && (
+        <p
+          className="line-clamp-2"
+          style={{
+            fontFamily: font.body,
+            fontSize: "14.5px",
+            lineHeight: "22px",
+            fontWeight: 400,
+            color: "var(--color-text-secondary)",
+            margin: 0,
+            marginTop: 8,
+          }}
+        >
+          {session.description}
+        </p>
+      )}
 
       {/* Meta row */}
       <div className="live-meta-row" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 20, marginTop: 16 }}>
@@ -380,49 +396,32 @@ function UpcomingCard({
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {formatSessionDate(session.date, session.time, session.timezone)}
+            {formatSessionDate(session.scheduledAt)}
+            {hostTime && <span style={{ textTransform: "none" }}> ({hostTime})</span>}
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <User style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
-          <span
-            style={{
-              fontFamily: font.body,
-              fontSize: 13,
-              lineHeight: "19px",
-              fontWeight: 400,
-              color: "var(--color-text-secondary)",
-            }}
-          >
-            with {session.host}
-          </span>
-        </div>
+        {session.hostName && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <User style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
+            <span
+              style={{
+                fontFamily: font.body,
+                fontSize: 13,
+                lineHeight: "19px",
+                fontWeight: 400,
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              with {session.hostName}
+            </span>
+          </div>
+        )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <BookOpen style={{ width: 13, height: 13, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 11,
-              lineHeight: "14px",
-              fontWeight: 500,
-              textTransform: "uppercase",
-              color: "var(--color-text-tertiary)",
-            }}
-          >
-            {session.module}
-          </span>
-        </div>
+        <ModuleLink module={session.module} />
       </div>
 
-      {/* Tags */}
-      <div style={{ marginTop: 12 }}>
-        <SessionTags tags={session.tags} />
-      </div>
-
-      {/* Countdown */}
-      <CountdownTimer session={session} />
+      {!isLive && <CountdownTimer session={session} />}
 
       {/* Action row */}
       <div
@@ -437,21 +436,22 @@ function UpcomingCard({
         }}
       >
         <PrimaryButton
-          onClick={() => {
-            if (session.joinUrl) {
-              window.open(session.joinUrl, "_blank", "noopener");
-            } else {
-              onToast("Could not open meeting link", "error");
-            }
-          }}
+          onClick={() => window.open(session.meetingUrl, "_blank", "noopener,noreferrer")}
         >
           {isLive ? "Join now \u2192" : "Join Session"}
         </PrimaryButton>
         <OutlineButton
           icon={CalendarPlus}
           onClick={() => {
-            generateICS(session);
-            onToast(".ics downloaded", "success");
+            generateICS({
+              id: session._id,
+              title: session.title,
+              description: session.description,
+              startsAt: session.scheduledAt,
+              endsAt: session.endsAt,
+              url: session.meetingUrl,
+            });
+            onToast("Calendar file downloaded", "success");
           }}
         >
           Add to Calendar
@@ -538,7 +538,7 @@ function RecordingCard({
           >
             RECORDED
           </span>
-          <DurationBadge minutes={session.duration} />
+          <DurationBadge minutes={session.durationMinutes} />
         </div>
 
         {/* Title */}
@@ -570,28 +570,24 @@ function RecordingCard({
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          {formatRecordingDate(session.date)}
+          {formatRecordingDate(session.scheduledAt)}
         </p>
 
-        {/* Host */}
-        <p
-          style={{
-            fontFamily: font.body,
-            fontSize: 13,
-            lineHeight: "19px",
-            fontWeight: 400,
-            color: "var(--color-text-secondary)",
-            margin: 0,
-            marginTop: 4,
-          }}
-        >
-          with {session.host}
-        </p>
-
-        {/* Tags */}
-        <div style={{ marginTop: 10 }}>
-          <SessionTags tags={session.tags} gap={4} />
-        </div>
+        {session.hostName && (
+          <p
+            style={{
+              fontFamily: font.body,
+              fontSize: 13,
+              lineHeight: "19px",
+              fontWeight: 400,
+              color: "var(--color-text-secondary)",
+              margin: 0,
+              marginTop: 4,
+            }}
+          >
+            with {session.hostName}
+          </p>
+        )}
 
         {/* Action */}
         <div
@@ -621,6 +617,8 @@ function RecordingModal({
   session: LiveSession;
   onClose: () => void;
 }) {
+  const embedUrl = session.recordingUrl ? videoEmbedUrl(session.recordingUrl) : null;
+
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -712,32 +710,46 @@ function RecordingModal({
           </button>
         </div>
 
-        {/* Video embed */}
         <div style={{ aspectRatio: "16 / 9", width: "100%", backgroundColor: "#000" }}>
-          <iframe
-            src={session.recordingUrl || ""}
-            title={session.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            style={{ width: "100%", height: "100%", border: "none" }}
-          />
+          {embedUrl ? (
+            <iframe
+              src={embedUrl}
+              title={session.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{ width: "100%", height: "100%", border: "none" }}
+            />
+          ) : (
+            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <a
+                href={session.recordingUrl ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontFamily: font.body, fontSize: 14, color: "#A5B4FC" }}
+              >
+                Open the recording in a new tab
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Modal footer */}
         <div style={{ padding: "16px 20px" }}>
-          <p
-            style={{
-              fontFamily: font.body,
-              fontSize: "14.5px",
-              lineHeight: "22px",
-              fontWeight: 400,
-              color: "var(--color-text-secondary)",
-              margin: 0,
-            }}
-          >
-            {session.description}
-          </p>
-          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 16, marginTop: 12 }}>
+          {session.description && (
+            <p
+              style={{
+                fontFamily: font.body,
+                fontSize: "14.5px",
+                lineHeight: "22px",
+                fontWeight: 400,
+                color: "var(--color-text-secondary)",
+                margin: "0 0 12px",
+              }}
+            >
+              {session.description}
+            </p>
+          )}
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Calendar style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }} />
               <span
@@ -751,41 +763,26 @@ function RecordingModal({
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {formatRecordingDate(session.date)}
+                {formatRecordingDate(session.scheduledAt)}
               </span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <User style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }} />
-              <span
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 13,
-                  lineHeight: "19px",
-                  fontWeight: 400,
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                with {session.host}
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <BookOpen style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }} />
-              <span
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 11,
-                  lineHeight: "14px",
-                  fontWeight: 500,
-                  textTransform: "uppercase",
-                  color: "var(--color-text-tertiary)",
-                }}
-              >
-                {session.module}
-              </span>
-            </div>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <SessionTags tags={session.tags} gap={4} />
+            {session.hostName && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <User style={{ width: 13, height: 13, color: "var(--color-text-tertiary)" }} />
+                <span
+                  style={{
+                    fontFamily: font.body,
+                    fontSize: 13,
+                    lineHeight: "19px",
+                    fontWeight: 400,
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  with {session.hostName}
+                </span>
+              </div>
+            )}
+            <ModuleLink module={session.module} />
           </div>
         </div>
       </div>
@@ -818,10 +815,29 @@ export default function LivePage() {
     }
   }, [toast]);
 
-  const upcoming = mockSessions.filter(
-    (s) => s.status === "upcoming" || s.status === "live"
-  );
-  const recordings = mockSessions.filter((s) => s.status === "recorded");
+  const { loading, tracks, track, selectTrack } = useLearnerTrack();
+  const data = useQuery(api.workshops.listForLearner, track ? { trackId: track.trackId } : "skip");
+  const now = useNow(30_000);
+
+  if (loading || (track && data === undefined)) {
+    return (
+      <div className="px-8 py-12 max-md:px-5 max-md:py-6" style={{ maxWidth: 880, margin: "0 auto" }}>
+        <LoadingLine>Loading sessions…</LoadingLine>
+      </div>
+    );
+  }
+  if (!track || !data) {
+    return <PageMessage title="No live sessions yet" body="Sessions appear here once you're part of a track." />;
+  }
+
+  const sessions = data.sessions;
+  const upcoming = sessions
+    .filter((s) => workshopPhase(s.scheduledAt, s.endsAt, now) !== "past")
+    .sort((a, b) => a.scheduledAt - b.scheduledAt);
+  const recordings = sessions
+    .filter((s) => s.recordingUrl !== null && workshopPhase(s.scheduledAt, s.endsAt, now) === "past")
+    .sort((a, b) => b.scheduledAt - a.scheduledAt);
+  const subtitle = [data.cohort?.name, track.name].filter(Boolean).join(" · ");
 
   return (
     <>
@@ -881,9 +897,15 @@ export default function LivePage() {
               marginTop: 10,
             }}
           >
-            COHORT 01 · DESIGN LAB
+            {subtitle}
           </p>
         </header>
+
+        {tracks.length > 1 && (
+          <div style={{ marginTop: 20 }}>
+            <TrackChips tracks={tracks} selectedId={track.trackId} onSelect={selectTrack} />
+          </div>
+        )}
 
         {/* ── TAB BAR ── */}
         <div
@@ -916,7 +938,12 @@ export default function LivePage() {
             upcoming.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {upcoming.map((session) => (
-                  <UpcomingCard key={session.slug} session={session} onToast={showToast} />
+                  <UpcomingCard
+                    key={session._id}
+                    session={session}
+                    isLive={workshopPhase(session.scheduledAt, session.endsAt, now) === "live"}
+                    onToast={showToast}
+                  />
                 ))}
               </div>
             ) : (
@@ -984,7 +1011,7 @@ export default function LivePage() {
               >
                 {recordings.map((session) => (
                   <RecordingCard
-                    key={session.slug}
+                    key={session._id}
                     session={session}
                     onWatch={setModalSession}
                   />

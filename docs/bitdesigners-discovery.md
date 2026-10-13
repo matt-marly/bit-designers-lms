@@ -49,7 +49,27 @@ Four roles defined now (schema OS-ready); mentor *features* stay light in V1. **
 
 - **Mentor (V1 meaning):** reviews deliverables + hosts workshops. Not a full 1:1 mentorship system. **[DECIDED]**
 - **Alumni:** exists after cohort 1; read access to resources/directory/showcase + retained personal portfolio. Alumni→Mentor is a later role reassignment, no new system. **[DECIDED]**
-- Enforce via row-level security (per-cohort scoping). **[DECIDED]**
+- ~~Enforce via row-level security (per-cohort scoping).~~ Superseded: enforced in Convex functions (see below). **[DECIDED]**
+
+### Invitations and the permission model **[DECIDED]**
+
+The table above describes the product intent. The implementation turns it into granular permissions (full detail in `docs/architecture.md` §3):
+
+- **Invite-only.** An inviter enters just an email address; Clerk sends the invitation. Clerk sign-up is Restricted.
+- **Tracks are courses.** Admins can create tracks (e.g. "AI for Open Source"); cohorts live inside tracks.
+- **Track roles.** Every track has one **lead mentor** who controls it, with all track permissions. **Co-mentors** get the track permissions the inviter picks. **Students** are enrolled in a cohort and only see the tracks they were invited to.
+- **Platform roles are presets.** Super admin, admin, platform mentor and member pre-fill a permission checklist that the inviter can adjust. A platform mentor can work across every track's curriculum without being any track's lead.
+- **No escalation.** Nobody can grant a permission they don't hold. Leads can add co-mentors and invite students to their own track only.
+
+| Capability (V1 table row) | Platform permission | Track permission |
+|---|---|---|
+| Review deliverables | `reviews.manage` | `track.reviews` |
+| Host / manage live workshops | `workshops.manage` | `track.workshops` |
+| Post announcements | `announcements.global` | `track.announcements` |
+| Create / edit content | `content.manage` | `track.content` |
+| Manage cohorts | `tracks.manage` | `track.cohorts` |
+| Invite people | `invites.manage` | `track.students.invite` |
+| Manage users / permissions | `users.manage` | — |
 
 ## 5. V1 Scope
 

@@ -1,7 +1,13 @@
 "use client";
 
-import { MessageCircle, ArrowRight } from "lucide-react";
+import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
+import { MessageCircle, ArrowRight, ExternalLink } from "lucide-react";
 import { SectionLabel } from "@/components/ui/custom/section-label";
+import { api } from "@/convex/_generated/api";
+import { Avatar } from "@/components/admin/ui";
+import { LoadingLine, TrackChips } from "@/components/learn/ui";
+import { useLearnerTrack } from "@/lib/use-learner-track";
 
 const font = {
   display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
@@ -72,14 +78,136 @@ const channels = [
   },
 ] as const;
 
-/* ─── Cohort data (null = no cohort available) ─── */
+type Directory = NonNullable<FunctionReturnType<typeof api.community.directory>>;
+type Person = Directory["cohorts"][number]["members"][number];
+type ShowcaseItem = FunctionReturnType<typeof api.community.showcase>[number];
 
-const cohort = {
-  name: "Bitcoin for Designers — Cohort 01",
-  period: "July 2025 — September 2025",
-  members: "7 designers · Nigeria & Ghana",
-  summary: "Cohort 01 · 7 members · Design Lab & Open Source Lab",
-};
+function monthYear(ms: number) {
+  return new Date(ms).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+function cohortPeriod(cohort: { startsAt: number; endsAt: number | null }) {
+  return cohort.endsAt ? `${monthYear(cohort.startsAt)} — ${monthYear(cohort.endsAt)}` : `Started ${monthYear(cohort.startsAt)}`;
+}
+
+function PersonCard({ person, badge }: { person: Person; badge?: string }) {
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border-subtle)",
+        borderRadius: 14,
+        padding: 16,
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+        minWidth: 0,
+      }}
+    >
+      <Avatar name={person.fullName} src={person.avatarUrl} size={40} />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <p style={{ fontFamily: font.display, fontSize: 15, lineHeight: "21px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>
+            {person.fullName}
+          </p>
+          {badge && (
+            <span
+              style={{
+                fontFamily: font.mono,
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "#A5B4FC",
+                border: "1px solid rgba(99,102,241,0.35)",
+                backgroundColor: "rgba(99,102,241,0.10)",
+                borderRadius: 999,
+                padding: "1px 8px",
+              }}
+            >
+              {badge}
+            </span>
+          )}
+        </div>
+        {person.bio && (
+          <p
+            className="line-clamp-2"
+            style={{ fontFamily: font.body, fontSize: 13, lineHeight: "19px", color: "var(--color-text-secondary)", margin: "4px 0 0" }}
+          >
+            {person.bio}
+          </p>
+        )}
+        {person.portfolioUrl && (
+          <a
+            href={person.portfolioUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              marginTop: 6,
+              fontFamily: font.body,
+              fontSize: 12,
+              color: "#A5B4FC",
+              textDecoration: "none",
+              maxWidth: "100%",
+            }}
+          >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {person.portfolioUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+            </span>
+            <ExternalLink aria-hidden style={{ width: 11, height: 11, flexShrink: 0 }} />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ShowcaseCard({ item }: { item: ShowcaseItem }) {
+  return (
+    <a
+      href={item.linkUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group"
+      style={{
+        backgroundColor: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border-subtle)",
+        borderRadius: 14,
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        textDecoration: "none",
+        transition: "border-color 120ms ease, background-color 120ms ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--color-border-strong)";
+        e.currentTarget.style.backgroundColor = "#161616";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--color-border-subtle)";
+        e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <p style={{ fontFamily: font.display, fontSize: 15, lineHeight: "21px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0 }}>
+          {item.missionTitle}
+        </p>
+        <ExternalLink aria-hidden style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", flexShrink: 0, marginTop: 3 }} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Avatar name={item.learner.fullName} src={item.learner.avatarUrl} size={24} />
+        <span style={{ fontFamily: font.body, fontSize: 13, color: "var(--color-text-secondary)" }}>{item.learner.fullName}</span>
+        <span style={{ fontFamily: font.mono, fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: "auto" }}>
+          {new Date(item.reviewedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+        </span>
+      </div>
+    </a>
+  );
+}
 
 /* ─── Channel icon renderer ─── */
 
@@ -195,12 +323,36 @@ function ChannelCard({ channel }: { channel: (typeof channels)[number] }) {
 
 /* ─── Page ─── */
 
+const gridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+  gap: 12,
+  marginTop: 20,
+} as const;
+
+const mutedTextStyle = {
+  fontFamily: font.body,
+  fontSize: 13,
+  lineHeight: "19px",
+  color: "var(--color-text-tertiary)",
+  margin: 0,
+} as const;
+
 export default function CommunityPage() {
+  const { loading, tracks, track, selectTrack } = useLearnerTrack();
+  const directory = useQuery(api.community.directory, track ? { trackId: track.trackId } : "skip");
+  const showcase = useQuery(api.community.showcase, track ? { trackId: track.trackId } : "skip");
+  const contextLine = [track?.cohort?.name, track?.name].filter(Boolean).join(" · ");
+
   return (
     <div
       className="max-md:px-5 max-md:py-6"
       style={{ maxWidth: 760, margin: "0 auto", padding: "48px 32px" }}
     >
+      {track && (
+        <TrackChips tracks={tracks} selectedId={track.trackId} onSelect={selectTrack} />
+      )}
+
       {/* Context line */}
       <span
         style={{
@@ -215,7 +367,7 @@ export default function CommunityPage() {
           marginBottom: 12,
         }}
       >
-        COHORT 01 · DESIGN LAB
+        {contextLine || "\u00A0"}
       </span>
 
       {/* Title */}
@@ -276,138 +428,70 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      {/* ── Cohort Section ── */}
-      {cohort && (
+      {loading || (track && directory === undefined) ? (
         <div style={{ marginTop: 48 }}>
-          <SectionLabel>YOUR COHORT</SectionLabel>
-          <p
-            style={{
-              fontFamily: font.body,
-              fontSize: 13,
-              lineHeight: "19px",
-              fontWeight: 400,
-              color: "var(--color-text-tertiary)",
-              margin: 0,
-              marginTop: 6,
-              marginBottom: 20,
-            }}
-          >
-            {cohort.summary}
-          </p>
-
-          {/* Cohort card */}
-          <div
-            style={{
-              backgroundColor: "var(--color-bg-surface)",
-              border: "1px solid var(--color-border-subtle)",
-              borderRadius: 14,
-              padding: 20,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 16,
-            }}
-          >
-            {/* Left column */}
-            <div>
-              <p
-                style={{
-                  fontFamily: font.display,
-                  fontSize: 15,
-                  lineHeight: "21px",
-                  fontWeight: 600,
-                  color: "var(--color-text-primary)",
-                  margin: 0,
-                }}
-              >
-                {cohort.name}
-              </p>
-              <p
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 12,
-                  lineHeight: "16px",
-                  fontWeight: 500,
-                  color: "var(--color-text-tertiary)",
-                  margin: 0,
-                  marginTop: 4,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {cohort.period}
-              </p>
-              <p
-                style={{
-                  fontFamily: font.body,
-                  fontSize: 13,
-                  lineHeight: "19px",
-                  fontWeight: 400,
-                  color: "var(--color-text-secondary)",
-                  margin: 0,
-                  marginTop: 4,
-                }}
-              >
-                {cohort.members}
-              </p>
-            </div>
-
-            {/* Right button */}
-            <button
-              onClick={() => window.open("https://discord.gg/bitcoindesign", "_blank")}
-              className="inline-flex items-center justify-center"
-              style={{
-                height: 36,
-                padding: "0 14px",
-                borderRadius: 10,
-                backgroundColor: "transparent",
-                color: "var(--color-text-primary)",
-                border: "1px solid var(--color-border-strong)",
-                fontFamily: font.body,
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-                transitionProperty: "background-color, border-color",
-                transitionDuration: "var(--duration-fast)",
-                transitionTimingFunction: "var(--ease-out-quart)",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.borderColor = "var(--color-border-strong)";
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-              }}
-            >
-              Meet on Discord
-            </button>
-          </div>
+          <LoadingLine>Loading your community…</LoadingLine>
         </div>
-      )}
+      ) : !track || !directory ? (
+        <p style={{ ...mutedTextStyle, marginTop: 48 }}>
+          You&apos;ll see your cohort here once you&apos;re enrolled in a track.
+        </p>
+      ) : (
+        <>
+          {directory.cohorts.map((cohort) => (
+            <section key={cohort._id} style={{ marginTop: 48 }}>
+              <SectionLabel>{cohort.isOwn ? "YOUR COHORT" : cohort.name.toUpperCase()}</SectionLabel>
+              <p style={{ ...mutedTextStyle, marginTop: 6 }}>
+                {[cohort.isOwn ? cohort.name : null, cohortPeriod(cohort), `${cohort.members.length} ${cohort.members.length === 1 ? "designer" : "designers"}`]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              {cohort.members.length === 0 ? (
+                <p style={{ ...mutedTextStyle, marginTop: 20 }}>No one has joined this cohort yet.</p>
+              ) : (
+                <div style={gridStyle}>
+                  {cohort.members.map((person) => (
+                    <PersonCard key={person._id} person={person} />
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
 
-      {/* ── Footer note ── */}
-      <p
-        style={{
-          fontFamily: font.body,
-          fontSize: 13,
-          lineHeight: "19px",
-          fontWeight: 400,
-          color: "var(--color-text-tertiary)",
-          margin: 0,
-          marginTop: 48,
-          textAlign: "center",
-        }}
-      >
-        More community features coming after Cohort 01.
-      </p>
+          {directory.mentors.length > 0 && (
+            <section style={{ marginTop: 48 }}>
+              <SectionLabel>MENTORS</SectionLabel>
+              <div style={gridStyle}>
+                {directory.mentors.map((person) => (
+                  <PersonCard key={person._id} person={person} badge={person.role === "lead_mentor" ? "Lead" : "Mentor"} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section style={{ marginTop: 48 }}>
+            <SectionLabel>SHOWCASE</SectionLabel>
+            <p style={{ ...mutedTextStyle, marginTop: 6 }}>
+              Work that passed review in {track.name}. You can hide yours from your profile.
+            </p>
+            {showcase === undefined ? (
+              <div style={{ marginTop: 20 }}>
+                <LoadingLine>Loading showcase…</LoadingLine>
+              </div>
+            ) : showcase.length === 0 ? (
+              <p style={{ ...mutedTextStyle, marginTop: 20 }}>
+                Nothing here yet. Passed missions will appear as reviews come in.
+              </p>
+            ) : (
+              <div style={gridStyle}>
+                {showcase.map((item) => (
+                  <ShowcaseCard key={item._id} item={item} />
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
