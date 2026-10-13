@@ -1,494 +1,277 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { CheckCircle, ChevronDown, ChevronRight, Lock } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { SectionLabel } from "@/components/ui/custom/section-label";
 import { StatusPill } from "@/components/ui/custom/status-pill";
-import { mockUnits, getTotalProgress } from "@/lib/mock-learn-data";
-import type { ModuleStatus, MockUnit } from "@/lib/mock-learn-data";
+import {
+  LoadingLine,
+  PageMessage,
+  ProgressBar,
+  ProgressPill,
+  TrackChips,
+  font,
+  monoLabelStyle,
+} from "@/components/learn/ui";
+import { useLearnerTrack } from "@/lib/use-learner-track";
 
-const font = {
-  display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
-  body: "var(--font-body), 'Inter', system-ui, -apple-system, sans-serif",
-  mono: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
-};
-
-function getStatusPill(status: ModuleStatus) {
-  switch (status) {
-    case "passed":
-      return <StatusPill label="Complete" variant="success" />;
-    case "in-progress":
-      return <StatusPill label="In Progress" variant="indigo" />;
-    case "not-started":
-      return <StatusPill label="Not Started" variant="neutral" />;
-  }
-}
-
-function getDefaultOpen(unit: MockUnit): boolean {
-  const hasInProgress = unit.modules.some((m) => m.status === "in-progress");
-  if (hasInProgress) return true;
-  return false;
-}
+type Overview = FunctionReturnType<typeof api.curriculum.overview>;
+type Unit = Overview["units"][number];
 
 export default function LearnPage() {
-  const router = useRouter();
-  const { total, complete } = getTotalProgress();
-  const allComplete = complete === total && total > 0;
-  const [progress, setProgress] = useState(0);
-  const [openUnits, setOpenUnits] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    for (const unit of mockUnits) {
-      initial[unit.id] = getDefaultOpen(unit);
-    }
-    return initial;
-  });
+  const { loading, tracks, track, selectTrack } = useLearnerTrack();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setProgress(Math.round((complete / total) * 100)), 100);
-    return () => clearTimeout(timer);
-  }, [complete, total]);
-
-  // Build a flat list to check previous module status for soft gating
-  const allModules = mockUnits.flatMap((unit) =>
-    unit.modules.map((mod) => ({ ...mod, unitId: unit.id }))
-  );
-
-  function shouldShowGatingHint(moduleSlug: string): boolean {
-    const idx = allModules.findIndex((m) => m.slug === moduleSlug);
-    if (idx <= 0) return false;
-    const prev = allModules[idx - 1];
-    const current = allModules[idx];
-    if (current.status !== "not-started") return false;
-    return prev.status !== "passed";
+  if (loading) return <LoadingLine>Loading…</LoadingLine>;
+  if (track === null) {
+    return (
+      <PageMessage
+        title="You're not in a track yet"
+        body="Once you're added to a cohort, your track's modules show up here."
+      />
+    );
   }
 
-  function toggleUnit(unitId: string) {
-    setOpenUnits((prev) => ({ ...prev, [unitId]: !prev[unitId] }));
+  return (
+    <div style={{ maxWidth: 880, margin: "0 auto" }}>
+      <TrackChips tracks={tracks} selectedId={track.trackId} onSelect={selectTrack} />
+      <TrackOverview key={track.trackId} trackId={track.trackId} />
+    </div>
+  );
+}
+
+function TrackOverview({ trackId }: { trackId: Id<"tracks"> }) {
+  const overview = useQuery(api.curriculum.overview, { trackId });
+  const [openUnits, setOpenUnits] = useState<Record<string, boolean>>({});
+
+  if (overview === undefined) return <LoadingLine>Loading modules…</LoadingLine>;
+
+  const { totals, units } = overview;
+  const allComplete = totals.modules > 0 && totals.completedModules === totals.modules;
+  const flat = units.flatMap((unit) => unit.modules.map((mod) => ({ ...mod, unitId: unit._id })));
+  const current = flat.find((m) => m.status === "published" && m.progress !== "complete");
+
+  function isOpen(unit: Unit) {
+    const explicit = openUnits[unit._id];
+    if (explicit !== undefined) return explicit;
+    return current ? current.unitId === unit._id : unit === units[0];
   }
 
   return (
     <>
-    <style>{`
-      @media (max-width: 768px) {
-        .learn-heading { font-size: 24px !important; line-height: 30px !important; }
-        .learn-unit-title { font-size: 16px !important; line-height: 22px !important; }
-        .learn-unit-bar { display: none !important; }
-        .learn-unit-bar-label { display: none !important; }
-        .learn-module-card { padding: 14px 16px !important; }
-        .learn-module-inner { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-        .learn-module-right { align-self: flex-start; }
-      }
-    `}</style>
-    <div style={{ maxWidth: 880, margin: "0 auto", display: "flex", flexDirection: "column", gap: 48 }}>
-      {/* Page Header + Progress */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* Row 1: breadcrumb */}
-        <span
-          style={{
-            fontFamily: font.mono,
-            fontSize: 11,
-            lineHeight: "14px",
-            fontWeight: 600,
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
-            color: "#737373",
-            marginBottom: 8,
-          }}
-        >
-          Design Lab · Bitcoin Foundations
-        </span>
+      <style>{`
+        @media (max-width: 768px) {
+          .learn-heading { font-size: 24px !important; line-height: 30px !important; }
+          .learn-unit-bar { display: none !important; }
+          .learn-module-card { padding: 14px 16px !important; flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+        }
+      `}</style>
 
-        {/* Row 2: heading */}
+      <header style={{ marginBottom: 40 }}>
+        <span style={{ ...monoLabelStyle, display: "block", marginBottom: 8 }}>{overview.track.name}</span>
         <h1
           className="learn-heading"
-          style={{
-            fontFamily: font.display,
-            fontSize: 28,
-            lineHeight: "34px",
-            fontWeight: 700,
-            color: "#FFFFFF",
-            margin: 0,
-          }}
+          style={{ fontFamily: font.display, fontSize: 28, lineHeight: "34px", fontWeight: 600, color: "#FFFFFF", margin: 0 }}
         >
           Learn
         </h1>
+        {totals.modules > 0 && (
+          <>
+            <div style={{ marginTop: 24, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ ...monoLabelStyle, fontWeight: 500, fontSize: 12, letterSpacing: 0 }}>
+                {totals.completedModules} of {totals.modules} modules complete
+              </span>
+              <span style={{ fontFamily: font.mono, fontSize: 12, color: "var(--color-text-tertiary)" }}>
+                {Math.round((totals.completedModules / totals.modules) * 100)}%
+              </span>
+            </div>
+            <ProgressBar value={totals.completedModules / totals.modules} label="Track progress" />
+          </>
+        )}
+      </header>
 
-        {/* Row 3: progress zone */}
+      {units.length === 0 ? (
+        <PageMessage
+          title="No modules yet"
+          body={
+            overview.canEdit
+              ? "Add units and modules on the Curriculum page in Admin."
+              : "Your mentors are still preparing this track. Check back soon."
+          }
+          action={overview.canEdit ? { href: "/admin/curriculum", label: "Open Curriculum" } : undefined}
+        />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+          {units.map((unit) => (
+            <UnitSection
+              key={unit._id}
+              unit={unit}
+              open={isOpen(unit)}
+              onToggle={() => setOpenUnits((prev) => ({ ...prev, [unit._id]: !isOpen(unit) }))}
+              currentModuleId={current?._id ?? null}
+            />
+          ))}
+        </div>
+      )}
+
+      {allComplete && (
         <div
+          role="status"
           style={{
-            marginTop: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            backgroundColor: "rgba(34,197,94,0.06)",
+            border: "1px solid rgba(34,197,94,0.20)",
+            borderRadius: 14,
+            padding: "20px 24px",
+            marginTop: 40,
+          }}
+        >
+          <CheckCircle aria-hidden style={{ width: 20, height: 20, color: "#22C55E", flexShrink: 0 }} />
+          <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: "22px", color: "#FFFFFF", margin: 0 }}>
+            You&apos;ve completed every module in this track. Outstanding work.
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+function UnitSection({
+  unit,
+  open,
+  onToggle,
+  currentModuleId,
+}: {
+  unit: Unit;
+  open: boolean;
+  onToggle: () => void;
+  currentModuleId: Id<"modules"> | null;
+}) {
+  const published = unit.modules.filter((m) => m.status === "published");
+  const done = published.filter((m) => m.progress === "complete").length;
+  const panelId = `unit-panel-${unit._id}`;
+
+  return (
+    <section>
+      <h2 style={{ margin: 0 }}>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={onToggle}
+          style={{
+            width: "100%",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: 16,
+            padding: "18px 0",
+            border: "none",
+            borderBottom: "1px solid #242424",
+            background: "none",
+            cursor: "pointer",
+            textAlign: "left",
           }}
         >
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 12,
-              lineHeight: "16px",
-              fontWeight: 500,
-              textTransform: "uppercase",
-              color: "#737373",
-            }}
-          >
-            {complete} of {total} modules complete
+          <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+            <span style={monoLabelStyle}>Unit {unit.number}</span>
+            <span style={{ fontFamily: font.display, fontSize: 18, lineHeight: "24px", fontWeight: 600, color: "#FFFFFF" }}>
+              {unit.title}
+            </span>
           </span>
-          <span
-            style={{
-              fontFamily: font.mono,
-              fontSize: 12,
-              lineHeight: "16px",
-              fontWeight: 500,
-              color: "#737373",
-            }}
-          >
-            {progress}%
+          <span style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+            <span style={{ ...monoLabelStyle, fontWeight: 500, letterSpacing: 0 }}>
+              {done} of {published.length}
+            </span>
+            <span className="learn-unit-bar" style={{ width: 80 }}>
+              <ProgressBar value={published.length ? done / published.length : 0} height={3} label={`${unit.title} progress`} />
+            </span>
+            <ChevronDown
+              aria-hidden
+              style={{
+                width: 16,
+                height: 16,
+                color: "#737373",
+                transform: open ? "rotate(-180deg)" : "none",
+                transition: "transform 200ms ease",
+              }}
+            />
           </span>
-        </div>
+        </button>
+      </h2>
 
-        {/* Row 4: progress bar */}
-        <div
-          style={{
-            marginTop: 8,
-            height: 4,
-            width: "100%",
-            borderRadius: 999,
-            backgroundColor: "#1C1C1C",
-            overflow: "hidden",
-            marginBottom: 40,
-          }}
-        >
-          <div
-            style={{
-              width: `${progress}%`,
-              transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
-              height: 4,
-              backgroundColor: "#6366F1",
-              borderRadius: 999,
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Units */}
-      {mockUnits.map((unit) => {
-        const unitComplete = unit.modules.filter((m) => m.status === "passed").length;
-        const isOpen = !!openUnits[unit.id];
-        return (
-          <section key={unit.id}>
-            {/* Unit header — clickable accordion toggle */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => toggleUnit(unit.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  toggleUnit(unit.id);
-                }
-              }}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "18px 0",
-                cursor: "pointer",
-                borderBottom: "1px solid #242424",
-                userSelect: "none",
-              }}
-            >
-              {/* Left side */}
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <span
+      <div id={panelId} hidden={!open} style={{ paddingTop: 12 }}>
+        {unit.description && (
+          <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: "22px", color: "var(--color-text-secondary)", margin: "4px 0 16px" }}>
+            {unit.description}
+          </p>
+        )}
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {unit.modules.map((mod) => {
+            const isCurrent = mod._id === currentModuleId;
+            const draft = mod.status === "draft";
+            return (
+              <li key={mod._id}>
+                <Link
+                  href={`/learn/${mod.slug}`}
+                  className="learn-module-card"
                   style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "#737373",
-                    marginBottom: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    padding: "20px 24px",
+                    backgroundColor: "var(--color-bg-surface)",
+                    border: `1px solid ${isCurrent ? "rgba(99,102,241,0.40)" : "var(--color-border-subtle)"}`,
+                    borderStyle: draft ? "dashed" : "solid",
+                    borderRadius: 14,
+                    textDecoration: "none",
+                    transitionProperty: "background-color, border-color",
+                    transitionDuration: "120ms",
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#161616")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-bg-surface)")}
                 >
-                  Unit {unit.number}
-                </span>
-                <h2
-                  className="learn-unit-title"
-                  style={{
-                    fontFamily: font.display,
-                    fontSize: 18,
-                    lineHeight: "24px",
-                    fontWeight: 600,
-                    color: "#FFFFFF",
-                    margin: 0,
-                  }}
-                >
-                  {unit.title}
-                </h2>
-              </div>
-
-              {/* Right side */}
-              <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    textTransform: "uppercase",
-                    color: "#737373",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {unitComplete} of {unit.modules.length}
-                </span>
-                <div
-                  className="learn-unit-bar"
-                  style={{
-                    width: 80,
-                    height: 3,
-                    borderRadius: 999,
-                    backgroundColor: "#242424",
-                    overflow: "hidden",
-                    flexShrink: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: unit.modules.length > 0 ? `${(unitComplete / unit.modules.length) * 100}%` : "0%",
-                      height: 3,
-                      backgroundColor: "#6366F1",
-                      borderRadius: 999,
-                    }}
-                  />
-                </div>
-                <span
-                  className="learn-unit-bar-label"
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    textTransform: "uppercase",
-                    color: "#737373",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Complete
-                </span>
-                <ChevronDown
-                  style={{
-                    width: 16,
-                    height: 16,
-                    color: "#737373",
-                    transform: isOpen ? "rotate(-180deg)" : "rotate(0deg)",
-                    transition: "transform 200ms ease",
-                    flexShrink: 0,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Unit body — collapsible */}
-            <div
-              style={{
-                maxHeight: isOpen ? 2000 : 0,
-                overflow: "hidden",
-                transition: "max-height 300ms ease-in-out",
-              }}
-            >
-              <div style={{ paddingTop: 12, paddingBottom: 24 }}>
-                {/* Advisory lock banner — only Unit 03 */}
-                {unit.locked && unit.lockMessage && (
-                  <div
-                    style={{
-                      backgroundColor: "var(--color-bg-surface-2)",
-                      border: "1px solid var(--color-border-subtle)",
-                      borderRadius: 14,
-                      padding: "14px 16px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <Lock
-                      style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", flexShrink: 0 }}
-                    />
-                    <p
+                  <span style={{ minWidth: 0 }}>
+                    <SectionLabel>{`Module ${mod.number}`}</SectionLabel>
+                    <span
                       style={{
-                        fontFamily: font.body,
-                        fontSize: 14,
-                        lineHeight: "20px",
-                        fontWeight: 400,
-                        color: "var(--color-text-secondary)",
-                        margin: 0,
+                        display: "block",
+                        fontFamily: font.display,
+                        fontSize: 16,
+                        lineHeight: "22px",
+                        fontWeight: 600,
+                        color: "var(--color-text-primary)",
+                        marginTop: 4,
                       }}
                     >
-                      {unit.lockMessage}
-                    </p>
-                  </div>
-                )}
-
-                {/* Module cards */}
-                {unit.modules.length === 0 ? (
-                  <p
-                    style={{
-                      fontFamily: font.body,
-                      fontSize: 14,
-                      lineHeight: "22px",
-                      color: "#737373",
-                      padding: "20px 0",
-                      margin: 0,
-                    }}
-                  >
-                    No modules in this unit yet.
-                  </p>
-                ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {unit.modules.map((mod) => {
-                    const showGating = shouldShowGatingHint(mod.slug);
-                    const isActive = mod.status === "in-progress";
-                    return (
-                        <div
-                          key={mod.slug}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => router.push(`/learn/${mod.slug}`)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              router.push(`/learn/${mod.slug}`);
-                            }
-                          }}
-                          className="learn-module-card learn-module-inner"
-                          style={{
-                            backgroundColor: "var(--color-bg-surface)",
-                            border: isActive ? "1px solid #333333" : "1px solid var(--color-border-subtle)",
-                            borderRadius: 14,
-                            padding: "20px 24px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 16,
-                            cursor: "pointer",
-                            transitionProperty: "background-color, border-color",
-                            transitionDuration: "120ms",
-                            transitionTimingFunction: "ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = "#161616";
-                            e.currentTarget.style.borderColor = isActive ? "rgba(99,102,241,0.40)" : "#333333";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
-                            e.currentTarget.style.borderColor = isActive ? "#333333" : "var(--color-border-subtle)";
-                          }}
-                        >
-                          <div style={{ minWidth: 0 }}>
-                            <SectionLabel>{`Module ${mod.number}`}</SectionLabel>
-                            <p
-                              style={{
-                                fontFamily: font.display,
-                                fontSize: 16,
-                                lineHeight: "22px",
-                                fontWeight: 600,
-                                color: "var(--color-text-primary)",
-                                margin: 0,
-                                marginTop: 4,
-                              }}
-                            >
-                              {mod.title}
-                            </p>
-                            {showGating && (
-                              <span
-                                style={{
-                                  display: "block",
-                                  marginTop: 4,
-                                  fontFamily: font.mono,
-                                  fontSize: 10,
-                                  lineHeight: "12px",
-                                  fontWeight: 500,
-                                  letterSpacing: "0.06em",
-                                  textTransform: "uppercase",
-                                  color: "#737373",
-                                }}
-                              >
-                                Complete previous module first
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="learn-module-right" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                            {getStatusPill(mod.status)}
-                            <ChevronRight
-                              style={{
-                                width: 16,
-                                height: 16,
-                                color: isActive ? "#6366F1" : "var(--color-text-tertiary)",
-                              }}
-                            />
-                          </div>
-                        </div>
-                    );
-                  })}
-                </div>
-                )}
-              </div>
-            </div>
-          </section>
-        );
-      })}
-
-      {/* All modules complete banner */}
-      {allComplete && (
-        <div
-          style={{
-            backgroundColor: "rgba(34,197,94,0.06)",
-            border: "1px solid rgba(34,197,94,0.20)",
-            borderRadius: 12,
-            padding: "20px 24px",
-            marginTop: 24,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <CheckCircle style={{ width: 20, height: 20, color: "#22C55E", flexShrink: 0 }} />
-            <p
-              style={{
-                fontFamily: font.body,
-                fontSize: 14,
-                lineHeight: "22px",
-                color: "#FFFFFF",
-                margin: 0,
-              }}
-            >
-              You&apos;ve completed all modules in this track. Outstanding work.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Empty state hint when all units collapsed */}
-      {!Object.values(openUnits).some(Boolean) && (
-        <p
-          style={{
-            fontFamily: font.body,
-            fontSize: 13,
-            lineHeight: "19px",
-            color: "#4A4A4A",
-            textAlign: "center",
-            marginTop: 32,
-            margin: 0,
-            marginBlockStart: 32,
-          }}
-        >
-          Click any unit to expand its modules
-        </p>
-      )}
-    </div>
-    </>
+                      {mod.title}
+                    </span>
+                    <span style={{ display: "block", fontFamily: font.mono, fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 6 }}>
+                      {mod.progress === "in_progress"
+                        ? `${mod.completedLessons} of ${mod.lessonCount} lessons`
+                        : `${mod.lessonCount} lesson${mod.lessonCount === 1 ? "" : "s"}`}
+                    </span>
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                    {draft ? <StatusPill label="Draft" variant="warning" /> : <ProgressPill progress={mod.progress} />}
+                    <ChevronRight
+                      aria-hidden
+                      style={{ width: 16, height: 16, color: isCurrent ? "#6366F1" : "var(--color-text-tertiary)" }}
+                    />
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
   );
 }

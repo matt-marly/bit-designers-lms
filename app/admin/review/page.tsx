@@ -1,436 +1,185 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { ExternalLink, ChevronDown, CheckCircle } from "lucide-react";
-import { SectionLabel } from "@/components/ui/custom/section-label";
-import { StatusPill } from "@/components/ui/custom/status-pill";
-import { PrimaryButton, OutlineButton } from "@/components/ui/custom/buttons";
-import { mockReviewQueue } from "@/lib/mock-admin-data";
+import { Suspense } from "react";
+import { CheckCircle } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { Toast, cardStyle, font, useToast } from "@/components/admin/ui";
+import { ReviewCard } from "@/components/admin/review/review-card";
 
-const font = {
-  display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
-  body: "var(--font-body), 'Inter', system-ui, -apple-system, sans-serif",
-  mono: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
-};
+type Tab = "to_review" | "in_review" | "reviewed";
 
-const cardStyle: React.CSSProperties = {
-  backgroundColor: "var(--color-bg-surface)",
-  border: "1px solid var(--color-border-subtle)",
-  borderRadius: 14,
-};
-
-const rubricItems = [
-  "Identifies at least 3 usability issues with evidence",
-  "Proposes design improvements grounded in Bitcoin UX best practices",
-  "Deliverable is well-structured and presentation-ready",
-  "Demonstrates understanding of self-custody mental models",
+const TABS: { value: Tab; label: string }[] = [
+  { value: "to_review", label: "To review" },
+  { value: "in_review", label: "In review" },
+  { value: "reviewed", label: "Reviewed" },
 ];
 
-function timeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffMins = Math.floor(diffMs / 60000);
-
-  if (diffDays > 30) {
-    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  }
-  if (diffDays > 0) return `${diffDays}d ago`;
-  if (diffHours > 0) return `${diffHours}h ago`;
-  if (diffMins > 0) return `${diffMins}m ago`;
-  return "just now";
-}
-
-function truncateUrl(url: string, max = 50): string {
-  if (url.length <= max) return url;
-  return url.slice(0, max) + "\u2026";
-}
-
-// Toast
-type ToastData = {
-  message: string;
-  type: "success" | "error";
+const EMPTY: Record<Tab, string> = {
+  to_review: "Nothing waiting for review.",
+  in_review: "Nobody is in the middle of a review.",
+  reviewed: "No reviews yet.",
 };
 
-const toastDotColor: Record<ToastData["type"], string> = {
-  success: "#22C55E",
-  error: "#EF4444",
-};
-
-type ReviewStatus = "pending" | "passed" | "needs_revision";
-
-interface ReviewItemState {
-  status: ReviewStatus;
-  outcome?: "passed" | "needs_revision";
-  comment: string;
-  submitted: boolean;
-  feedbackError: boolean;
-}
-
-function ReviewCard({
-  item,
-  onToast,
-}: {
-  item: (typeof mockReviewQueue)[number];
-  onToast: (message: string, type: ToastData["type"]) => void;
-}) {
-  const [rubricOpen, setRubricOpen] = useState(false);
-  const [review, setReview] = useState<ReviewItemState>({
-    status: item.status as ReviewStatus,
-    outcome: undefined,
-    comment: "",
-    submitted: false,
-    feedbackError: false,
-  });
-
-  const statusVariant = review.status === "passed" ? "success" : review.status === "needs_revision" ? "warning" : "indigo";
-  const statusLabel = review.status === "passed" ? "PASSED" : review.status === "needs_revision" ? "NEEDS REVISION" : "PENDING";
-
-  const hasUrl = Boolean(item.linkUrl);
-  const canSubmit = Boolean(review.outcome) && review.comment.trim().length > 0;
-
-  function handleSubmitReview() {
-    if (!review.outcome) {
-      onToast("Please select an outcome", "error");
-      return;
-    }
-    if (!review.comment.trim()) {
-      setReview((p) => ({ ...p, feedbackError: true }));
-      onToast("Feedback is required", "error");
-      return;
-    }
-    setReview((prev) => ({
-      ...prev,
-      status: prev.outcome!,
-      submitted: true,
-      outcome: undefined,
-      comment: "",
-      feedbackError: false,
-    }));
-    onToast("Review submitted", "success");
-  }
-
+export default function ReviewQueuePage() {
   return (
-    <div style={{ ...cardStyle, padding: 24, marginBottom: 16 }}>
-      {/* Top row */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-        <div style={{ minWidth: 0 }}>
-          <SectionLabel>{`MISSION · VERSION ${item.version}`}</SectionLabel>
-          <p style={{ fontFamily: font.display, fontSize: 18, lineHeight: "24px", fontWeight: 600, color: "var(--color-text-primary)", margin: 0, marginTop: 6 }}>
-            {item.missionTitle}
-          </p>
-          <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 4 }}>
-            Submitted by {item.learnerName} · {timeAgo(item.submittedAt)}
-          </p>
-          <p style={{ fontFamily: font.mono, fontSize: 11, lineHeight: "14px", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-tertiary)", margin: 0, marginTop: 4 }}>
-            {item.track.toUpperCase()} · {item.cohort.toUpperCase()}
-          </p>
-        </div>
-        <StatusPill label={statusLabel} variant={statusVariant} />
-      </div>
-
-      {/* Submission link */}
-      <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <ExternalLink style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", flexShrink: 0 }} />
-        <a
-          href={item.linkUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontFamily: font.body, fontSize: 14, fontWeight: 400, color: "var(--color-text-primary)", textDecoration: "none", transitionProperty: "color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-indigo-text)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
-        >
-          {truncateUrl(item.linkUrl)}
-        </a>
-        <div style={{ marginLeft: "auto" }}>
-          <OutlineButton
-            size="small"
-            disabled={!hasUrl}
-            onClick={() => window.open(item.linkUrl, "_blank")}
-          >
-            Open in Figma
-          </OutlineButton>
-        </div>
-      </div>
-
-      {/* Rubric (collapsible) */}
-      <div style={{ marginTop: 16 }}>
-        <button
-          onClick={() => setRubricOpen(!rubricOpen)}
-          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, transitionProperty: "color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text-primary)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-text-secondary)"; }}
-        >
-          <ChevronDown style={{ width: 14, height: 14, color: "inherit", transform: rubricOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)" }} />
-          <span style={{ fontFamily: font.body, fontSize: 13, fontWeight: 500, color: "inherit" }}>View Rubric</span>
-        </button>
-        <div style={{ maxHeight: rubricOpen ? 200 : 0, overflow: "hidden", transition: "max-height 200ms cubic-bezier(0.25, 1, 0.5, 1)" }}>
-          <ul style={{ margin: 0, paddingLeft: 20, paddingTop: 10, listStyle: "disc" }}>
-            {rubricItems.map((r) => (
-              <li key={r} style={{ fontFamily: font.body, fontSize: 13, lineHeight: "20px", fontWeight: 400, color: "var(--color-text-secondary)", marginBottom: 4 }}>{r}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Review form / result */}
-      <div style={{ marginTop: 20, borderTop: "1px solid var(--color-border-subtle)", paddingTop: 20 }}>
-        {review.submitted ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <CheckCircle style={{ width: 16, height: 16, color: "var(--color-success-text)" }} />
-            <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-success-text)" }}>Review submitted</span>
-            <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 400, color: "var(--color-text-secondary)", marginLeft: 4 }}>Learner has been notified.</span>
-          </div>
-        ) : review.status === "pending" ? (
-          <>
-            {/* Outcome buttons */}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => setReview((p) => ({ ...p, outcome: "passed" }))}
-                style={{
-                  flex: 1, height: 40, borderRadius: 10, cursor: "pointer",
-                  border: review.outcome === "passed"
-                    ? "1px solid rgba(34,197,94,0.30)"
-                    : "1px solid #333333",
-                  backgroundColor: review.outcome === "passed"
-                    ? "rgba(34,197,94,0.10)"
-                    : "transparent",
-                  color: review.outcome === "passed"
-                    ? "#4ADE80"
-                    : "#737373",
-                  fontFamily: font.body, fontSize: 14, fontWeight: 600,
-                  padding: "0 20px",
-                  transitionProperty: "background-color, border-color, color",
-                  transitionDuration: "120ms",
-                  transitionTimingFunction: "ease",
-                }}
-                onMouseEnter={(e) => {
-                  if (review.outcome !== "passed") {
-                    e.currentTarget.style.borderColor = "rgba(34,197,94,0.30)";
-                    e.currentTarget.style.color = "#B5B5B5";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (review.outcome !== "passed") {
-                    e.currentTarget.style.borderColor = "#333333";
-                    e.currentTarget.style.color = "#737373";
-                  }
-                }}
-              >
-                Pass
-              </button>
-              <button
-                onClick={() => setReview((p) => ({ ...p, outcome: "needs_revision" }))}
-                style={{
-                  flex: 1, height: 40, borderRadius: 10, cursor: "pointer",
-                  border: review.outcome === "needs_revision"
-                    ? "1px solid rgba(245,158,11,0.30)"
-                    : "1px solid #333333",
-                  backgroundColor: review.outcome === "needs_revision"
-                    ? "rgba(245,158,11,0.10)"
-                    : "transparent",
-                  color: review.outcome === "needs_revision"
-                    ? "#F59E0B"
-                    : "#737373",
-                  fontFamily: font.body, fontSize: 14, fontWeight: 600,
-                  padding: "0 20px",
-                  transitionProperty: "background-color, border-color, color",
-                  transitionDuration: "120ms",
-                  transitionTimingFunction: "ease",
-                }}
-                onMouseEnter={(e) => {
-                  if (review.outcome !== "needs_revision") {
-                    e.currentTarget.style.borderColor = "rgba(245,158,11,0.30)";
-                    e.currentTarget.style.color = "#B5B5B5";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (review.outcome !== "needs_revision") {
-                    e.currentTarget.style.borderColor = "#333333";
-                    e.currentTarget.style.color = "#737373";
-                  }
-                }}
-              >
-                Needs Revision
-              </button>
-            </div>
-
-            {/* Comment */}
-            <div style={{ marginTop: 16 }}>
-              <label style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", display: "block", marginBottom: 8 }}>Feedback for learner</label>
-              <textarea
-                rows={4} placeholder="Write your feedback..."
-                value={review.comment}
-                onChange={(e) => setReview((p) => ({ ...p, comment: e.target.value, feedbackError: false }))}
-                style={{ width: "100%", padding: "12px 14px", borderRadius: 10, backgroundColor: "var(--color-bg-surface-2)", border: "1px solid var(--color-border-strong)", color: "var(--color-text-primary)", fontFamily: font.body, fontSize: "14.5px", lineHeight: "22px", fontWeight: 400, resize: "vertical", minHeight: 96, outline: "none", boxSizing: "border-box" }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-border-strong)"; e.currentTarget.style.boxShadow = "none"; }}
-              />
-              {review.feedbackError && (
-                <p style={{ fontFamily: font.body, fontSize: 12, fontWeight: 400, color: "#F87171", margin: 0, marginTop: 6 }}>
-                  Feedback is required before submitting
-                </p>
-              )}
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <div style={{ opacity: canSubmit ? 1 : 0.4, cursor: canSubmit ? "pointer" : "not-allowed", pointerEvents: canSubmit ? "auto" : "none" }}>
-                <PrimaryButton fullWidth onClick={handleSubmitReview}>Submit Review</PrimaryButton>
-              </div>
-              {(!review.outcome || !review.comment.trim()) && (
-                <p
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    fontWeight: 500,
-                    color: "var(--color-text-tertiary)",
-                    textAlign: "center",
-                    margin: 0,
-                    marginTop: 8,
-                  }}
-                >
-                  Select an outcome and write feedback to submit
-                </p>
-              )}
-            </div>
-          </>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <CheckCircle style={{ width: 16, height: 16, color: "var(--color-success-text)" }} />
-            <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: review.status === "passed" ? "var(--color-success-text)" : "var(--color-warning-text)" }}>
-              {review.status === "passed" ? "Passed" : "Needs Revision"}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
+    <Suspense fallback={null}>
+      <ReviewQueue />
+    </Suspense>
   );
 }
 
-export default function ReviewQueuePage() {
-  const [filter, setFilter] = useState<"all" | "pending" | "reviewed">("all");
-  const [toast, setToast] = useState<ToastData | null>(null);
-  const pendingCount = mockReviewQueue.filter((r) => r.status === "pending").length;
+function ReviewQueue() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { toast, showToast } = useToast();
+  const tracks = useQuery(api.reviews.reviewableTracks);
 
-  const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
-    setToast({ message, type });
-  }, []);
+  const requestedTab = searchParams.get("tab");
+  const tab: Tab = TABS.some((t) => t.value === requestedTab) ? (requestedTab as Tab) : "to_review";
+  const requestedTrack = searchParams.get("track");
+  const trackId = tracks?.find((t) => t._id === requestedTrack)?._id;
+  const entries = useQuery(api.reviews.queue, tracks === undefined ? "skip" : { tab, trackId });
 
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(timer);
-  }, [toast]);
+  const waiting = (tracks ?? [])
+    .filter((t) => trackId === undefined || t._id === trackId)
+    .reduce((sum, t) => sum + t.waiting, 0);
 
-  const filtered = mockReviewQueue.filter((item) => {
-    if (filter === "pending") return item.status === "pending";
-    if (filter === "reviewed") return item.status !== "pending";
-    return true;
-  });
+  function setParams(next: { tab?: Tab; track?: Id<"tracks"> | null }) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.tab) params.set("tab", next.tab);
+    if (next.track === null) params.delete("track");
+    else if (next.track) params.set("track", next.track);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   return (
     <div>
-      <h1 style={{ fontFamily: font.display, fontSize: 36, lineHeight: "42px", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--color-text-primary)", margin: 0 }}>Review Queue</h1>
+      <h1
+        style={{
+          fontFamily: font.display,
+          fontSize: 36,
+          lineHeight: "42px",
+          fontWeight: 600,
+          letterSpacing: "-0.02em",
+          color: "var(--color-text-primary)",
+          margin: 0,
+        }}
+      >
+        Review Queue
+      </h1>
+      <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: "22px", color: "var(--color-text-secondary)", margin: "6px 0 0" }}>
+        {tracks === undefined
+          ? "Loading…"
+          : waiting === 0
+            ? "You're all caught up."
+            : `${waiting >= 100 ? "100+" : waiting} submission${waiting === 1 ? "" : "s"} waiting for review, oldest first.`}
+      </p>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginTop: 6, marginBottom: 32 }}>
-        <p style={{ fontFamily: font.body, fontSize: 14, lineHeight: "22px", fontWeight: 400, color: "var(--color-text-secondary)", margin: 0 }}>
-          {pendingCount} submission{pendingCount !== 1 ? "s" : ""} pending review
-        </p>
-        <div style={{ display: "flex", gap: 0 }}>
-          {(["all", "pending", "reviewed"] as const).map((f) => (
-            <button
-              key={f} onClick={() => setFilter(f)}
-              style={{
-                padding: "8px 14px", fontFamily: font.body, fontSize: 13, fontWeight: 500,
-                color: filter === f ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
-                background: "none", border: "none",
-                borderBottom: filter === f ? "2px solid var(--color-indigo)" : "2px solid transparent",
-                cursor: "pointer", textTransform: "capitalize",
-                transitionProperty: "color", transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quart)",
-              }}
-              onMouseEnter={(e) => { if (filter !== f) e.currentTarget.style.color = "var(--color-text-secondary)"; }}
-              onMouseLeave={(e) => { if (filter !== f) e.currentTarget.style.color = "var(--color-text-tertiary)"; }}
-            >
-              {f}
-            </button>
-          ))}
+      {tracks !== undefined && tracks.length > 1 && (
+        <div role="group" aria-label="Track" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 24 }}>
+          {[{ _id: null, name: "All tracks", waiting: 0 }, ...tracks].map((t) => {
+            const selected = (t._id ?? undefined) === trackId;
+            return (
+              <button
+                key={t._id ?? "all"}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setParams({ track: t._id })}
+                style={{
+                  height: 34,
+                  padding: "0 14px",
+                  borderRadius: 999,
+                  border: `1px solid ${selected ? "rgba(99,102,241,0.55)" : "var(--color-border-strong)"}`,
+                  backgroundColor: selected ? "rgba(99,102,241,0.12)" : "transparent",
+                  color: selected ? "#A5B4FC" : "var(--color-text-secondary)",
+                  fontFamily: font.body,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {t.name}
+                {t._id !== null && t.waiting > 0 && (
+                  <span style={{ fontFamily: font.mono, fontSize: 11, color: "var(--color-text-tertiary)" }}>{t.waiting}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
+      )}
+
+      <div
+        role="tablist"
+        aria-label="Review status"
+        style={{ display: "flex", borderBottom: "1px solid var(--color-border-subtle)", marginTop: 24, marginBottom: 24 }}
+      >
+        {TABS.map((t) => {
+          const selected = t.value === tab;
+          return (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setParams({ tab: t.value })}
+              style={{
+                padding: "10px 14px",
+                marginBottom: -1,
+                fontFamily: font.body,
+                fontSize: 13,
+                fontWeight: 500,
+                color: selected ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
+                background: "none",
+                border: "none",
+                borderBottom: selected ? "2px solid var(--color-indigo)" : "2px solid transparent",
+                cursor: "pointer",
+              }}
+            >
+              {t.label}
+              {t.value === "to_review" && waiting > 0 && (
+                <span style={{ fontFamily: font.mono, fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 6 }}>
+                  {waiting >= 100 ? "99+" : waiting}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {filtered.length === 0 ? (
-        filter === "pending" ? (
-          <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <CheckCircle style={{ width: 32, height: 32, color: "#22C55E", margin: "0 auto" }} />
-            <p style={{ fontFamily: font.body, fontSize: 16, fontWeight: 500, color: "#FFFFFF", margin: 0, marginTop: 12 }}>
-              No submissions pending review
-            </p>
-          </div>
-        ) : filter === "reviewed" ? (
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
-            <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 400, color: "#737373", margin: 0 }}>
-              No reviewed submissions yet.
-            </p>
-          </div>
-        ) : (
-          <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <p style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>No submissions match this filter</p>
-            <p style={{ fontFamily: font.body, fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)", margin: 0, marginTop: 4 }}>Try selecting a different filter above.</p>
-          </div>
-        )
+      {tracks !== undefined && tracks.length === 0 ? (
+        <div style={{ ...cardStyle, padding: 32, textAlign: "center" }}>
+          <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-secondary)", margin: 0 }}>
+            You don&apos;t review work in any track.
+          </p>
+        </div>
+      ) : entries === undefined ? (
+        <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-tertiary)" }}>Loading submissions…</p>
+      ) : entries.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 0" }}>
+          {tab === "to_review" && <CheckCircle size={32} aria-hidden style={{ display: "block", color: "#22C55E", margin: "0 auto 12px" }} />}
+          <p style={{ fontFamily: font.body, fontSize: 15, fontWeight: 500, color: "var(--color-text-primary)", margin: 0 }}>{EMPTY[tab]}</p>
+        </div>
       ) : (
-        filtered.map((item) => <ReviewCard key={item.id} item={item} onToast={showToast} />)
-      )}
-
-      {/* Toast notification */}
-      {toast && (
-        <div
-          role={toast.type === "error" ? "alert" : "status"}
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 50,
-            background: "#1C1C1C",
-            border: "1px solid #333333",
-            borderRadius: 10,
-            padding: "12px 16px",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            minWidth: 280,
-            maxWidth: 360,
-            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
-            animation: "toast-enter 240ms cubic-bezier(0.25, 1, 0.5, 1)",
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              backgroundColor: toastDotColor[toast.type],
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontFamily: font.body,
-              fontSize: 14,
-              color: "#FFFFFF",
-            }}
-          >
-            {toast.message}
-          </span>
+        <div style={{ display: "grid", gap: 16 }}>
+          {entries.map((entry) => (
+            <ReviewCard key={entry._id} entry={entry} onToast={showToast} />
+          ))}
+          {entries.length >= 50 && (
+            <p style={{ fontFamily: font.body, fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", margin: 0 }}>
+              {tab === "reviewed" ? "Showing the 50 most recent reviews." : "Showing the oldest 50."}
+            </p>
+          )}
         </div>
       )}
 
-      <style>{`
-        @keyframes toast-enter {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      <Toast toast={toast} />
     </div>
   );
 }

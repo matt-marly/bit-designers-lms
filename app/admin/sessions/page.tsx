@@ -1,279 +1,111 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { SectionLabel } from "@/components/ui/custom/section-label";
-import { PrimaryButton } from "@/components/ui/custom/buttons";
-import { mockSessions } from "@/lib/mock-live-data";
-import type { LiveSession } from "@/lib/mock-live-data";
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { workshopPhase, WORKSHOP_LIMITS, type WorkshopPhase } from "@/convex/lib/workshops";
+import {
+  ConfirmStrip,
+  SectionHeader,
+  StatusBadge,
+  Toast,
+  cardStyle,
+  controlStyle,
+  errorMessage,
+  fieldLabelStyle,
+  focusHandlers,
+  font,
+  ghostButtonStyle,
+  smallButtonStyle,
+  toDateInput,
+  useToast,
+  type ShowToast,
+} from "@/components/admin/ui";
+import { useNow } from "@/lib/use-now";
+import {
+  durationLabel,
+  fromDateTimeInputs,
+  hostTimeLabel,
+  sessionDay,
+  sessionTime,
+  toTimeInput,
+  viewerTimezone,
+} from "@/lib/sessions";
 
-const font = {
-  display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
-  body: "var(--font-body), 'Inter', system-ui, -apple-system, sans-serif",
-  mono: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+type AdminData = FunctionReturnType<typeof api.workshops.listForAdmin>;
+type AdminSession = AdminData["sessions"][number];
+type AdminTrack = AdminData["tracks"][number];
+
+const DURATIONS = [30, 45, 60, 90, 120, 180];
+
+const phaseBadge: Record<WorkshopPhase, { tone: "indigo" | "success" | "neutral"; label: string }> = {
+  upcoming: { tone: "indigo", label: "Upcoming" },
+  live: { tone: "success", label: "Live" },
+  past: { tone: "neutral", label: "Past" },
 };
 
-const cardStyle: React.CSSProperties = {
-  backgroundColor: "var(--color-bg-surface)",
-  border: "1px solid var(--color-border-subtle)",
-  borderRadius: 14,
+type FormState = {
+  cohortId: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  durationMinutes: number;
+  hostName: string;
+  moduleId: string;
+  meetingUrl: string;
 };
 
-const labelStyle: React.CSSProperties = {
-  fontFamily: font.mono,
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.10em",
-  textTransform: "uppercase",
-  color: "#B5B5B5",
-  display: "block",
-  marginBottom: 8,
-};
+const emptyForm = (cohortId = ""): FormState => ({
+  cohortId,
+  title: "",
+  description: "",
+  date: "",
+  time: "",
+  durationMinutes: 60,
+  hostName: "",
+  moduleId: "",
+  meetingUrl: "",
+});
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  height: 40,
-  padding: "0 14px",
-  borderRadius: 10,
-  backgroundColor: "#181818",
-  border: "1px solid #333333",
-  color: "#FFFFFF",
-  fontFamily: font.body,
-  fontSize: 14,
-  fontWeight: 400,
-  outline: "none",
-  boxSizing: "border-box",
-  appearance: "none",
-  WebkitAppearance: "none",
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  cursor: "pointer",
-};
-
-type ToastData = {
-  message: string;
-  type: "success" | "error";
-};
-
-const toastDotColor: Record<ToastData["type"], string> = {
-  success: "#22C55E",
-  error: "#EF4444",
-};
-
-function formatSessionDate(date: string, time: string, tz: string): string {
-  const d = new Date(date + "T" + time);
-  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
-  const month = d.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
-  const day = d.getDate();
-  const [h, m] = time.split(":");
-  const hour = parseInt(h);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${weekday}, ${month} ${day} · ${hour12}:${m} ${ampm} ${tz}`;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles = {
-    upcoming: {
-      bg: "rgba(99,102,241,0.12)",
-      text: "#A5B4FC",
-      border: "rgba(99,102,241,0.35)",
-      label: "UPCOMING",
-    },
-    recorded: {
-      bg: "#202020",
-      text: "#737373",
-      border: "#242424",
-      label: "RECORDED",
-    },
-    live: {
-      bg: "rgba(34,197,94,0.10)",
-      text: "#4ADE80",
-      border: "rgba(34,197,94,0.30)",
-      label: "LIVE",
-    },
-  }[status] ?? {
-    bg: "#202020",
-    text: "#737373",
-    border: "#242424",
-    label: status.toUpperCase(),
+function formFromSession(s: AdminSession): FormState {
+  return {
+    cohortId: s.cohortId,
+    title: s.title,
+    description: s.description ?? "",
+    date: toDateInput(s.scheduledAt),
+    time: toTimeInput(s.scheduledAt),
+    durationMinutes: s.durationMinutes,
+    hostName: s.hostName ?? "",
+    moduleId: s.module?._id ?? "",
+    meetingUrl: s.meetingUrl,
   };
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "3px 8px",
-        borderRadius: 999,
-        backgroundColor: styles.bg,
-        border: `1px solid ${styles.border}`,
-        fontFamily: font.mono,
-        fontSize: 10,
-        fontWeight: 600,
-        letterSpacing: "0.10em",
-        textTransform: "uppercase",
-        color: styles.text,
-      }}
-    >
-      {styles.label}
-    </span>
-  );
 }
 
-function handleFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-  e.currentTarget.style.borderColor = "rgba(99,102,241,0.70)";
-  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.15)";
-}
-
-function handleBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-  e.currentTarget.style.borderColor = "#333333";
-  e.currentTarget.style.boxShadow = "none";
-}
-
-function isValidUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url);
-}
-
-function isValidYouTubeUrl(url: string): boolean {
-  return /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(url);
-}
-
-function isDateInPast(dateStr: string): boolean {
-  if (!dateStr) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const parts = dateStr.split("/").map((s) => s.trim());
-  let parsed: Date | null = null;
-  if (parts.length === 3) {
-    const [dd, mm, yyyy] = parts;
-    parsed = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-  } else {
-    parsed = new Date(dateStr);
-  }
-  if (!parsed || isNaN(parsed.getTime())) return false;
-  return parsed < today;
+function schedulableCohorts(track: AdminTrack) {
+  return track.cohorts.filter((c) => c.status === "draft" || c.status === "active");
 }
 
 export default function SessionsPage() {
-  const [sessions, setSessions] = useState<LiveSession[]>([...mockSessions]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [duration, setDuration] = useState(60);
-  const [cohort, setCohort] = useState("Cohort 01");
-  const [link, setLink] = useState("");
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [dateWarning, setDateWarning] = useState<string | null>(null);
-  const [confirmingSlug, setConfirmingSlug] = useState<string | null>(null);
-  const [recordingSlug, setRecordingSlug] = useState<string | null>(null);
-  const [recordingUrl, setRecordingUrl] = useState("");
-  const [recordingError, setRecordingError] = useState<string | null>(null);
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const data = useQuery(api.workshops.listForAdmin, {});
+  const { toast, showToast } = useToast();
+  const [editing, setEditing] = useState<AdminSession | null>(null);
+  const now = useNow(30_000);
 
-  const canSchedule = title.trim() !== "" && date !== "" && time !== "" && link.trim() !== "";
-
-  const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
-    setToast({ message, type });
-  }, []);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), toast.type === "error" ? 5000 : 3000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  function handleDateChange(value: string) {
-    setDate(value);
-    setDateWarning(isDateInPast(value) ? "This date is in the past" : null);
+  if (data === undefined) {
+    return <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-tertiary)" }}>Loading sessions…</p>;
   }
 
-  function handleLinkBlur() {
-    if (link.trim() !== "" && !isValidUrl(link.trim())) {
-      setLinkError("Please enter a valid URL");
-    } else {
-      setLinkError(null);
-    }
-  }
-
-  function handleSchedule() {
-    if (!canSchedule) return;
-    if (link.trim() !== "" && !isValidUrl(link.trim())) {
-      setLinkError("Please enter a valid URL");
-      return;
-    }
-    const newSession: LiveSession = {
-      slug: `session-${Date.now()}`,
-      title: title.trim(),
-      description: description.trim(),
-      host: "Adeyemi Matthew",
-      cohort,
-      date,
-      time,
-      timezone: "WAT",
-      duration,
-      joinUrl: link.trim(),
-      recordingUrl: null,
-      status: "upcoming",
-      module: "",
-      tags: [],
-    };
-    setSessions((prev) => [newSession, ...prev]);
-    setTitle("");
-    setDescription("");
-    setDate("");
-    setTime("");
-    setDuration(60);
-    setCohort("Cohort 01");
-    setLink("");
-    setLinkError(null);
-    setDateWarning(null);
-    showToast("Session scheduled");
-  }
-
-  function handleCancelSession(slug: string) {
-    setSessions((prev) => prev.filter((s) => s.slug !== slug));
-    setConfirmingSlug(null);
-    showToast("Session cancelled");
-  }
-
-  function handleSaveRecording(slug: string) {
-    if (!isValidYouTubeUrl(recordingUrl.trim())) {
-      setRecordingError("Please enter a valid YouTube URL");
-      return;
-    }
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.slug === slug
-          ? { ...s, recordingUrl: recordingUrl.trim(), status: "recorded" as const }
-          : s
-      )
-    );
-    setRecordingSlug(null);
-    setRecordingUrl("");
-    setRecordingError(null);
-    showToast("Recording added");
-  }
+  const upcoming = data.sessions
+    .filter((s) => workshopPhase(s.scheduledAt, s.endsAt, now) !== "past")
+    .sort((a, b) => a.scheduledAt - b.scheduledAt);
+  const past = data.sessions.filter((s) => workshopPhase(s.scheduledAt, s.endsAt, now) === "past");
+  const showTrack = data.tracks.length > 1;
 
   return (
     <div>
-      <style>{`
-        input[type="date"]::-webkit-calendar-picker-indicator,
-        input[type="time"]::-webkit-calendar-picker-indicator,
-        input[type="date"]::-webkit-inner-spin-button,
-        input[type="time"]::-webkit-inner-spin-button {
-          display: none;
-          -webkit-appearance: none;
-        }
-        @keyframes toast-enter {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-
       <h1
         style={{
           fontFamily: font.display,
@@ -287,469 +119,508 @@ export default function SessionsPage() {
       >
         Sessions
       </h1>
-      <div style={{ marginBottom: 32 }} />
+      <p style={{ fontFamily: font.body, fontSize: 15, color: "var(--color-text-secondary)", margin: "8px 0 32px" }}>
+        Schedule live sessions for a cohort. Learners see them on their Live page in their own timezone.
+      </p>
 
-      {/* Schedule form */}
-      <div style={{ ...cardStyle, padding: 24, marginBottom: 32 }}>
-        <SectionLabel>SCHEDULE NEW SESSION</SectionLabel>
+      {data.tracks.length === 0 ? (
+        <div style={{ ...cardStyle, padding: 24 }}>
+          <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-secondary)", margin: 0 }}>
+            You can&apos;t schedule sessions for any track yet.
+          </p>
+        </div>
+      ) : (
+        <SessionForm
+          key={editing?._id ?? "new"}
+          tracks={data.tracks}
+          editing={editing}
+          onDone={() => setEditing(null)}
+          showToast={showToast}
+        />
+      )}
 
-        <>
-          <div style={{ marginTop: 20 }}>
-            <label style={labelStyle}>Title</label>
-            <input
-              type="text"
-              placeholder="Session title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={inputStyle}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-            />
-          </div>
+      <section style={{ marginTop: 40 }}>
+        <SectionHeader title="Upcoming" meta={upcoming.length} />
+        <SessionList
+          sessions={upcoming}
+          now={now}
+          showTrack={showTrack}
+          empty="No upcoming sessions."
+          onEdit={(s) => {
+            setEditing(s);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          showToast={showToast}
+        />
+      </section>
 
-          <div style={{ marginTop: 16 }}>
-            <label style={labelStyle}>Description</label>
-            <textarea
-              rows={3}
-              placeholder="Session description..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{
-                ...inputStyle,
-                height: "auto",
-                padding: "12px 14px",
-                minHeight: 80,
-                resize: "vertical",
-              }}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-            />
-          </div>
+      <section style={{ marginTop: 40 }}>
+        <SectionHeader title="Past" meta={past.length} />
+        <SessionList
+          sessions={past}
+          now={now}
+          showTrack={showTrack}
+          empty="Past sessions will appear here. Add a recording link once one is ready."
+          onEdit={(s) => {
+            setEditing(s);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          showToast={showToast}
+        />
+      </section>
 
-          <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 140px" }}>
-              <label style={labelStyle}>Date</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="DD / MM / YYYY"
-                value={date}
-                onChange={(e) => handleDateChange(e.target.value)}
-                style={inputStyle}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-              />
-              {dateWarning && (
-                <p style={{ fontFamily: font.body, fontSize: 12, color: "#F59E0B", margin: 0, marginTop: 6 }}>
-                  {dateWarning}
-                </p>
-              )}
-            </div>
-            <div style={{ flex: "1 1 140px" }}>
-              <label style={labelStyle}>Time</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="00:00"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                style={inputStyle}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-              />
-            </div>
-          </div>
+      <Toast toast={toast} />
+    </div>
+  );
+}
 
-          <div style={{ marginTop: 16 }}>
-            <label style={labelStyle}>Duration</label>
-            <select
-              value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
-              style={selectStyle}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-            >
-              <option value={60}>60 min</option>
-              <option value={90}>90 min</option>
-              <option value={120}>120 min</option>
-            </select>
-          </div>
+function SessionForm({
+  tracks,
+  editing,
+  onDone,
+  showToast,
+}: {
+  tracks: AdminTrack[];
+  editing: AdminSession | null;
+  onDone: () => void;
+  showToast: ShowToast;
+}) {
+  const create = useMutation(api.workshops.create);
+  const update = useMutation(api.workshops.update);
+  const firstCohort = tracks.flatMap(schedulableCohorts)[0]?._id ?? "";
+  const [form, setForm] = useState<FormState>(() => (editing ? formFromSession(editing) : emptyForm(firstCohort)));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-          <div style={{ marginTop: 16 }}>
-            <label style={labelStyle}>Cohort</label>
-            <select
-              value={cohort}
-              onChange={(e) => setCohort(e.target.value)}
-              style={selectStyle}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-            >
-              <option value="Cohort 01">Cohort 01</option>
-              <option value="Cohort 02">Cohort 02</option>
-            </select>
-          </div>
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const track = tracks.find((t) => t.cohorts.some((c) => c._id === form.cohortId));
+  const scheduledAt = fromDateTimeInputs(form.date, form.time);
+  const canSave = form.cohortId !== "" && form.title.trim() !== "" && scheduledAt !== null && form.meetingUrl.trim() !== "";
+  const timezone = viewerTimezone();
 
-          <div style={{ marginTop: 16 }}>
-            <label style={labelStyle}>Meeting link</label>
-            <input
-              type="url"
-              placeholder="https://zoom.us/..."
-              value={link}
-              onChange={(e) => { setLink(e.target.value); if (linkError) setLinkError(null); }}
-              style={{
-                ...inputStyle,
-                borderColor: linkError ? "rgba(239,68,68,0.55)" : "#333333",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = linkError ? "rgba(239,68,68,0.55)" : "rgba(99,102,241,0.70)";
-                e.currentTarget.style.boxShadow = linkError ? "0 0 0 3px rgba(239,68,68,0.15)" : "0 0 0 3px rgba(99,102,241,0.15)";
-              }}
-              onBlur={(e) => {
-                handleLinkBlur();
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.borderColor = (link.trim() !== "" && !isValidUrl(link.trim())) ? "rgba(239,68,68,0.55)" : "#333333";
-              }}
-            />
-            {linkError && (
-              <p style={{ fontFamily: font.body, fontSize: 12, color: "#F87171", margin: 0, marginTop: 6 }}>
-                {linkError}
-              </p>
-            )}
-          </div>
+  async function save() {
+    if (!canSave || scheduledAt === null) return;
+    setSaving(true);
+    setError(null);
+    const fields = {
+      cohortId: form.cohortId as Id<"cohorts">,
+      title: form.title,
+      description: form.description,
+      scheduledAt,
+      durationMinutes: form.durationMinutes,
+      timezone,
+      meetingUrl: form.meetingUrl,
+      hostName: form.hostName,
+      moduleId: form.moduleId ? (form.moduleId as Id<"modules">) : undefined,
+    };
+    try {
+      if (editing) {
+        await update({ workshopId: editing._id, ...fields });
+        showToast("Session updated");
+        onDone();
+      } else {
+        await create(fields);
+        showToast("Session scheduled. The cohort has been notified.");
+        setForm(emptyForm(form.cohortId));
+      }
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
 
-          <div style={{ marginTop: 20 }}>
-            <PrimaryButton fullWidth disabled={!canSchedule} onClick={handleSchedule}>
-              Schedule Session
-            </PrimaryButton>
-            {!canSchedule && (
-              <p
-                style={{
-                  fontFamily: font.mono,
-                  fontSize: 11,
-                  lineHeight: "14px",
-                  fontWeight: 500,
-                  color: "var(--color-text-tertiary)",
-                  textAlign: "center",
-                  margin: 0,
-                  marginTop: 8,
-                }}
-              >
-                Fill in title, date, time, and meeting link
-              </p>
-            )}
-          </div>
-        </>
+  return (
+    <div style={{ ...cardStyle, padding: 24 }}>
+      <h2 style={{ ...fieldLabelStyle, color: "var(--color-text-tertiary)", marginBottom: 20 }}>
+        {editing ? "Edit session" : "Schedule new session"}
+      </h2>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        <Field label="Cohort" htmlFor="session-cohort">
+          <select
+            id="session-cohort"
+            value={form.cohortId}
+            onChange={(e) => setForm((f) => ({ ...f, cohortId: e.target.value, moduleId: "" }))}
+            style={{ ...controlStyle, cursor: "pointer" }}
+            {...focusHandlers}
+          >
+            {form.cohortId === "" && <option value="">Pick a cohort</option>}
+            {tracks.map((t) => {
+              const cohorts = schedulableCohorts(t);
+              const current = editing && t.cohorts.find((c) => c._id === editing.cohortId && !cohorts.includes(c));
+              const options = current ? [...cohorts, current] : cohorts;
+              if (options.length === 0) return null;
+              return (
+                <optgroup key={t._id} label={t.name}>
+                  {options.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
+        </Field>
+        <Field label="Title" htmlFor="session-title">
+          <input
+            id="session-title"
+            value={form.title}
+            maxLength={WORKSHOP_LIMITS.title}
+            placeholder="Critique: wireframes"
+            onChange={(e) => set("title", e.target.value)}
+            style={controlStyle}
+            {...focusHandlers}
+          />
+        </Field>
       </div>
 
-      {/* Sessions list */}
-      <div
-        style={{
-          fontFamily: font.mono,
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.10em",
-          textTransform: "uppercase",
-          color: "#737373",
-          marginBottom: 16,
-        }}
-      >
-        ALL SESSIONS
+      <div style={{ marginTop: 16 }}>
+        <Field label="Description" htmlFor="session-description">
+          <textarea
+            id="session-description"
+            rows={3}
+            value={form.description}
+            maxLength={WORKSHOP_LIMITS.description}
+            placeholder="What you'll cover and anything to prepare"
+            onChange={(e) => set("description", e.target.value)}
+            style={{ ...controlStyle, height: "auto", padding: "10px 14px", lineHeight: "22px", resize: "vertical" }}
+            {...focusHandlers}
+          />
+        </Field>
       </div>
 
-      <div
-        style={{
-          border: "1px solid #242424",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
-      >
-        {sessions.length === 0 ? (
-          <div style={{ padding: 24, textAlign: "center" }}>
-            <p style={{ fontFamily: font.body, fontSize: 14, color: "#737373", margin: 0 }}>
-              No sessions scheduled yet.
-            </p>
-          </div>
-        ) : (
-          sessions.map((session, i) => (
-            <div
-              key={session.slug}
-              style={{
-                padding: "16px 20px",
-                borderBottom: i < sessions.length - 1 ? "1px solid #242424" : "none",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              {/* Left */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
-                <span
-                  style={{
-                    fontFamily: font.body,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: "#FFFFFF",
-                  }}
-                >
-                  {session.title}
-                </span>
-                <span
-                  style={{
-                    fontFamily: font.mono,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "#737373",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {formatSessionDate(session.date, session.time, session.timezone)}
-                </span>
-                <span
-                  style={{
-                    fontFamily: font.body,
-                    fontSize: 13,
-                    fontWeight: 400,
-                    color: "#B5B5B5",
-                  }}
-                >
-                  with {session.host} · {session.duration} min
-                </span>
-              </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginTop: 16 }}>
+        <Field label="Date" htmlFor="session-date">
+          <input
+            id="session-date"
+            type="date"
+            value={form.date}
+            onChange={(e) => set("date", e.target.value)}
+            style={controlStyle}
+            {...focusHandlers}
+          />
+        </Field>
+        <Field label="Start time" htmlFor="session-time">
+          <input
+            id="session-time"
+            type="time"
+            value={form.time}
+            onChange={(e) => set("time", e.target.value)}
+            style={controlStyle}
+            {...focusHandlers}
+          />
+        </Field>
+        <Field label="Duration" htmlFor="session-duration">
+          <select
+            id="session-duration"
+            value={form.durationMinutes}
+            onChange={(e) => set("durationMinutes", Number(e.target.value))}
+            style={{ ...controlStyle, cursor: "pointer" }}
+            {...focusHandlers}
+          >
+            {(DURATIONS.includes(form.durationMinutes) ? DURATIONS : [...DURATIONS, form.durationMinutes].sort((a, b) => a - b)).map(
+              (d) => (
+                <option key={d} value={d}>
+                  {durationLabel(d)}
+                </option>
+              ),
+            )}
+          </select>
+        </Field>
+      </div>
+      <p style={{ fontFamily: font.body, fontSize: 12, color: "var(--color-text-tertiary)", margin: "8px 0 0" }}>
+        Times are in your timezone ({timezone}).
+      </p>
 
-              {/* Center: status */}
-              <StatusBadge status={session.status} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginTop: 16 }}>
+        <Field label="Host (optional)" htmlFor="session-host">
+          <input
+            id="session-host"
+            value={form.hostName}
+            maxLength={WORKSHOP_LIMITS.hostName}
+            placeholder="Who's leading it"
+            onChange={(e) => set("hostName", e.target.value)}
+            style={controlStyle}
+            {...focusHandlers}
+          />
+        </Field>
+        <Field label="Related module (optional)" htmlFor="session-module">
+          <select
+            id="session-module"
+            value={form.moduleId}
+            onChange={(e) => set("moduleId", e.target.value)}
+            style={{ ...controlStyle, cursor: "pointer" }}
+            disabled={!track}
+            {...focusHandlers}
+          >
+            <option value="">None</option>
+            {track?.modules.map((m) => (
+              <option key={m._id} value={m._id}>
+                {m.title}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
 
-              {/* Right: actions */}
-              <div style={{ display: "flex", gap: 8, flexShrink: 0, marginLeft: 16, alignItems: "center" }}>
-                {session.status === "upcoming" && (
-                  confirmingSlug === session.slug ? (
-                    <>
-                      <span style={{ fontFamily: font.body, fontSize: 13, color: "#737373" }}>
-                        Cancel this session?
-                      </span>
-                      <button
-                        onClick={() => handleCancelSession(session.slug)}
-                        style={{
-                          height: 28,
-                          padding: "0 12px",
-                          borderRadius: 10,
-                          backgroundColor: "transparent",
-                          border: "1px solid rgba(239,68,68,0.35)",
-                          color: "#F87171",
-                          fontFamily: font.body,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Yes, cancel
-                      </button>
-                      <button
-                        onClick={() => setConfirmingSlug(null)}
-                        style={{
-                          height: 28,
-                          padding: "0 12px",
-                          borderRadius: 0,
-                          backgroundColor: "transparent",
-                          border: "none",
-                          color: "var(--color-text-secondary)",
-                          fontFamily: font.body,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Keep
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        style={{
-                          height: 28,
-                          padding: "0 12px",
-                          borderRadius: 8,
-                          backgroundColor: "transparent",
-                          border: "1px solid #333333",
-                          color: "#FFFFFF",
-                          fontFamily: font.body,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          transitionProperty: "background-color, border-color, color",
-                          transitionDuration: "var(--duration-fast)",
-                          transitionTimingFunction: "var(--ease-out-quart)",
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setConfirmingSlug(session.slug)}
-                        style={{
-                          height: 28,
-                          padding: "0 12px",
-                          borderRadius: 8,
-                          backgroundColor: "transparent",
-                          border: "1px solid #333333",
-                          color: "#FFFFFF",
-                          fontFamily: font.body,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          transitionProperty: "background-color, border-color, color",
-                          transitionDuration: "var(--duration-fast)",
-                          transitionTimingFunction: "var(--ease-out-quart)",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = "rgba(239,68,68,0.55)";
-                          e.currentTarget.style.color = "#F87171";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = "#333333";
-                          e.currentTarget.style.color = "#FFFFFF";
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )
-                )}
-                {session.status === "recorded" && (
-                  recordingSlug === session.slug ? (
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      <div>
-                        <input
-                          type="url"
-                          placeholder="https://youtube.com/..."
-                          value={recordingUrl}
-                          onChange={(e) => { setRecordingUrl(e.target.value); if (recordingError) setRecordingError(null); }}
-                          style={{
-                            ...inputStyle,
-                            width: 240,
-                            borderColor: recordingError ? "rgba(239,68,68,0.55)" : "#333333",
-                          }}
-                          onFocus={(e) => {
-                            e.currentTarget.style.borderColor = recordingError ? "rgba(239,68,68,0.55)" : "rgba(99,102,241,0.70)";
-                            e.currentTarget.style.boxShadow = recordingError ? "0 0 0 3px rgba(239,68,68,0.15)" : "0 0 0 3px rgba(99,102,241,0.15)";
-                          }}
-                          onBlur={(e) => {
-                            e.currentTarget.style.borderColor = recordingError ? "rgba(239,68,68,0.55)" : "#333333";
-                            e.currentTarget.style.boxShadow = "none";
-                          }}
-                        />
-                        {recordingError && (
-                          <p style={{ fontFamily: font.body, fontSize: 12, color: "#F87171", margin: 0, marginTop: 6 }}>
-                            {recordingError}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleSaveRecording(session.slug)}
-                        style={{
-                          height: 32,
-                          padding: "0 12px",
-                          borderRadius: 10,
-                          backgroundColor: "#6366F1",
-                          border: "none",
-                          color: "#FFFFFF",
-                          fontFamily: font.body,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          transitionProperty: "background-color",
-                          transitionDuration: "var(--duration-fast)",
-                          transitionTimingFunction: "var(--ease-out-quart)",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#777AF5")}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#6366F1")}
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => { setRecordingSlug(null); setRecordingUrl(""); setRecordingError(null); }}
-                        style={{
-                          height: 32,
-                          padding: "0 12px",
-                          borderRadius: 0,
-                          backgroundColor: "transparent",
-                          border: "none",
-                          color: "var(--color-text-secondary)",
-                          fontFamily: font.body,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => { setRecordingSlug(session.slug); setRecordingUrl(session.recordingUrl || ""); setRecordingError(null); }}
-                      style={{
-                        height: 28,
-                        padding: "0 12px",
-                        borderRadius: 8,
-                        backgroundColor: "transparent",
-                        border: "1px solid #333333",
-                        color: "#FFFFFF",
-                        fontFamily: font.body,
-                        fontSize: 13,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                        transitionProperty: "background-color, border-color, color",
-                        transitionDuration: "var(--duration-fast)",
-                        transitionTimingFunction: "var(--ease-out-quart)",
-                      }}
-                    >
-                      Add Recording
-                    </button>
-                  )
-                )}
-              </div>
-            </div>
-          ))
+      <div style={{ marginTop: 16 }}>
+        <Field label="Meeting link" htmlFor="session-link">
+          <input
+            id="session-link"
+            type="url"
+            inputMode="url"
+            value={form.meetingUrl}
+            placeholder="https://meet.google.com/..."
+            onChange={(e) => set("meetingUrl", e.target.value)}
+            style={controlStyle}
+            {...focusHandlers}
+          />
+        </Field>
+      </div>
+
+      {error && (
+        <p role="alert" style={{ fontFamily: font.body, fontSize: 13, color: "#F87171", margin: "16px 0 0" }}>
+          {error}
+        </p>
+      )}
+
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center", marginTop: 20, flexWrap: "wrap" }}>
+        {!canSave && (
+          <span style={{ fontFamily: font.body, fontSize: 12, color: "var(--color-text-tertiary)", marginRight: "auto" }}>
+            Add a cohort, title, date, time and meeting link.
+          </span>
         )}
-      </div>
-
-      {/* Toast */}
-      {toast && (
-        <div
-          role={toast.type === "error" ? "alert" : "status"}
+        {editing && (
+          <button type="button" style={ghostButtonStyle} onClick={onDone} disabled={saving}>
+            Cancel
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={save}
+          disabled={!canSave || saving}
           style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 50,
-            background: "#1C1C1C",
-            border: "1px solid #333333",
-            borderRadius: 10,
-            padding: "12px 16px",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            minWidth: 280,
-            maxWidth: 360,
-            boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
-            animation: "toast-enter 240ms cubic-bezier(0.25, 1, 0.5, 1)",
+            ...smallButtonStyle,
+            height: 36,
+            padding: "0 16px",
+            backgroundColor: "var(--color-indigo)",
+            borderColor: "var(--color-indigo)",
+            color: "#fff",
+            opacity: !canSave || saving ? 0.5 : 1,
+            cursor: !canSave || saving ? "not-allowed" : "pointer",
           }}
         >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              backgroundColor: toastDotColor[toast.type],
-              flexShrink: 0,
-            }}
-          />
-          <span style={{ fontFamily: font.body, fontSize: 14, color: "#FFFFFF" }}>
-            {toast.message}
+          {saving ? "Saving…" : editing ? "Save changes" : "Schedule session"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} style={fieldLabelStyle}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function SessionList({
+  sessions,
+  now,
+  showTrack,
+  empty,
+  onEdit,
+  showToast,
+}: {
+  sessions: AdminSession[];
+  now: number;
+  showTrack: boolean;
+  empty: string;
+  onEdit: (session: AdminSession) => void;
+  showToast: ShowToast;
+}) {
+  if (sessions.length === 0) {
+    return (
+      <div style={{ ...cardStyle, padding: 20 }}>
+        <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-tertiary)", margin: 0 }}>{empty}</p>
+      </div>
+    );
+  }
+  return (
+    <div style={{ ...cardStyle, overflow: "hidden" }}>
+      {sessions.map((s, i) => (
+        <SessionRow
+          key={s._id}
+          session={s}
+          phase={workshopPhase(s.scheduledAt, s.endsAt, now)}
+          showTrack={showTrack}
+          first={i === 0}
+          onEdit={() => onEdit(s)}
+          showToast={showToast}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SessionRow({
+  session,
+  phase,
+  showTrack,
+  first,
+  onEdit,
+  showToast,
+}: {
+  session: AdminSession;
+  phase: WorkshopPhase;
+  showTrack: boolean;
+  first: boolean;
+  onEdit: () => void;
+  showToast: ShowToast;
+}) {
+  const cancel = useMutation(api.workshops.cancel);
+  const setRecording = useMutation(api.workshops.setRecording);
+  const [confirming, setConfirming] = useState(false);
+  const [recordingOpen, setRecordingOpen] = useState(false);
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const hostTime = hostTimeLabel(session.scheduledAt, session.timezone);
+  const badge = phaseBadge[phase];
+
+  async function handleCancel() {
+    setBusy(true);
+    try {
+      await cancel({ workshopId: session._id });
+      showToast("Session cancelled");
+    } catch (err) {
+      showToast(errorMessage(err), "error");
+      setBusy(false);
+    }
+  }
+
+  async function saveRecording(url: string | null) {
+    setBusy(true);
+    setRecordingError(null);
+    try {
+      await setRecording({ workshopId: session._id, recordingUrl: url });
+      showToast(url ? "Recording saved" : "Recording removed");
+      setRecordingOpen(false);
+    } catch (err) {
+      setRecordingError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const meta = [session.cohortName, durationLabel(session.durationMinutes), session.hostName && `with ${session.hostName}`]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div style={{ borderTop: first ? "none" : "1px solid var(--color-border-subtle)" }}>
+      <div style={{ padding: "16px 20px", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: "1 1 280px" }}>
+          <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>
+            {session.title}
           </span>
+          <span style={{ fontFamily: font.mono, fontSize: 12, color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>
+            {sessionDay(session.scheduledAt)} · {sessionTime(session.scheduledAt)}
+            {hostTime && <span style={{ color: "var(--color-text-tertiary)" }}> ({hostTime})</span>}
+          </span>
+          <span style={{ fontFamily: font.body, fontSize: 13, color: "var(--color-text-tertiary)" }}>
+            {showTrack ? `${session.trackName} · ${meta}` : meta}
+          </span>
+        </div>
+        <StatusBadge tone={badge.tone}>{session.recordingUrl ? "Recorded" : badge.label}</StatusBadge>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {phase === "past" ? (
+            <button
+              type="button"
+              style={smallButtonStyle}
+              onClick={() => {
+                setRecordingUrl(session.recordingUrl ?? "");
+                setRecordingError(null);
+                setRecordingOpen((o) => !o);
+              }}
+            >
+              {session.recordingUrl ? "Edit recording" : "Add recording"}
+            </button>
+          ) : (
+            <a href={session.meetingUrl} target="_blank" rel="noopener noreferrer" style={{ ...smallButtonStyle, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
+              Open link
+            </a>
+          )}
+          <button type="button" style={smallButtonStyle} onClick={onEdit}>
+            Edit
+          </button>
+          {phase !== "past" && (
+            <button type="button" style={ghostButtonStyle} onClick={() => setConfirming(true)}>
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+
+      {confirming && (
+        <ConfirmStrip
+          message="Cancel this session? It will disappear from the cohort's Live page."
+          confirmLabel="Yes, cancel session"
+          danger
+          busy={busy}
+          onConfirm={handleCancel}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+
+      {recordingOpen && (
+        <div style={{ padding: "4px 20px 16px", backgroundColor: "#141414" }}>
+          <label htmlFor={`recording-${session._id}`} style={fieldLabelStyle}>
+            Recording link (YouTube or Vimeo)
+          </label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              id={`recording-${session._id}`}
+              type="url"
+              inputMode="url"
+              value={recordingUrl}
+              placeholder="https://youtube.com/watch?v=..."
+              onChange={(e) => setRecordingUrl(e.target.value)}
+              style={{ ...controlStyle, flex: "1 1 280px", width: "auto" }}
+              {...focusHandlers}
+            />
+            <button
+              type="button"
+              disabled={busy || !recordingUrl.trim()}
+              onClick={() => saveRecording(recordingUrl)}
+              style={{
+                ...smallButtonStyle,
+                height: 40,
+                backgroundColor: "var(--color-indigo)",
+                borderColor: "var(--color-indigo)",
+                color: "#fff",
+                opacity: busy || !recordingUrl.trim() ? 0.5 : 1,
+              }}
+            >
+              Save
+            </button>
+            {session.recordingUrl && (
+              <button type="button" disabled={busy} style={{ ...ghostButtonStyle, height: 40 }} onClick={() => saveRecording(null)}>
+                Remove
+              </button>
+            )}
+          </div>
+          {recordingError && (
+            <p role="alert" style={{ fontFamily: font.body, fontSize: 12, color: "#F87171", margin: "6px 0 0" }}>
+              {recordingError}
+            </p>
+          )}
         </div>
       )}
     </div>

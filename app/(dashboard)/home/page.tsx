@@ -1,49 +1,117 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Megaphone, CheckCircle2, BookOpen, FileText, PlayCircle, Users } from "lucide-react";
-import { mockSessions } from "@/lib/mock-live-data";
+import { Award, Megaphone, CheckCircle2, BookOpen, Clock, FileText, PlayCircle, Target, Users } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
+import Link from "next/link";
+import { workshopPhase } from "@/convex/lib/workshops";
+import { useLearnerTrack } from "@/lib/use-learner-track";
+import { useNow } from "@/lib/use-now";
+import { sessionDay, sessionTime } from "@/lib/sessions";
+import { relativeTime } from "@/lib/time";
+import { Markdown } from "@/components/markdown";
+import { daysUntil, isOverdue, missionStatusLabel, shortDate } from "@/components/learn/missions";
 
-// ---------------------------------------------------------------------------
-// Mock data — replaced with Supabase queries later
-// ---------------------------------------------------------------------------
-const user = { firstName: "Amara" };
-const cohort = { name: "Cohort 1", track: "Design Lab", currentWeek: 3, totalWeeks: 12 };
-const nextModule: {
-  label: string;
-  unit: string;
-  module: string;
-  lesson: string;
-  progressPercent: number;
-} | null = {
-  label: "Bitcoin as a Design Medium",
-  unit: "Unit 01",
-  module: "Module 03",
-  lesson: "Lesson 02",
-  progressPercent: 60,
-};
-const stats = {
-  modulesComplete: 7,
-  modulesTotal: 24,
-  missionsPassed: 2,
-  missionsPending: 1,
-};
-const currentMission: {
-  title: string;
-  dueInDays: number;
-  status: "In Progress";
-} | null = {
-  title: "Bitcoin UX Audit \u2014 Wallets",
-  dueInDays: 3,
-  status: "In Progress" as const,
-};
-const announcements: { title: string; time: string }[] = [
-  { title: "Cohort 1 Kickoff Recording is now available", time: "2 hours ago" },
-  { title: "Week 3 Mission Brief has been posted", time: "Yesterday" },
-];
+type MissionRow = FunctionReturnType<typeof api.missions.list>["missions"][number];
+
+/** Needs revision first, then untouched work by nearest due date, then outline order. */
+function pickCurrentMission(missions: MissionRow[]): MissionRow | null {
+  const revision = missions.find((m) => m.status === "needs_revision");
+  if (revision) return revision;
+  const todo = missions.filter((m) => m.status === "not_started");
+  if (todo.length === 0) return null;
+  return [...todo].sort((a, b) => (a.dueAt ?? Infinity) - (b.dueAt ?? Infinity))[0];
+}
+
+function dueLabel(mission: MissionRow) {
+  if (mission.dueAt === null) return null;
+  if (isOverdue(mission.dueAt, mission.satisfied, mission.status)) return { text: `OVERDUE · WAS DUE ${shortDate(mission.dueAt).toUpperCase()}`, color: "#F87171" };
+  const days = daysUntil(mission.dueAt);
+  if (days <= 0) return { text: "DUE TODAY", color: "#FBBF24" };
+  if (days === 1) return { text: "DUE TOMORROW", color: "#FBBF24" };
+  return { text: `DUE IN ${days} DAYS · ${shortDate(mission.dueAt).toUpperCase()}`, color: days <= 3 ? "#FBBF24" : "#737373" };
+}
+
+type FeedItem = FunctionReturnType<typeof api.announcements.feed>[number];
+
+function AnnouncementItem({ announcement: a, last, time }: { announcement: FeedItem; last: boolean; time: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ borderBottom: last ? "none" : "1px solid var(--color-border-subtle)" }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+          padding: "12px 0",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
+          <Megaphone
+            aria-hidden
+            style={{ width: 16, height: 16, color: "var(--color-text-tertiary)", marginTop: 3, flexShrink: 0 }}
+          />
+          <span
+            style={{
+              fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
+              fontSize: "14.5px",
+              lineHeight: "22px",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            {a.title}
+          </span>
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+            fontSize: 11,
+            lineHeight: "14px",
+            fontWeight: 500,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: "var(--color-text-tertiary)",
+            flexShrink: 0,
+            marginTop: 4,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {time}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: "0 0 16px 28px" }}>
+          <Markdown>{a.body}</Markdown>
+          {a.authorName && (
+            <p
+              style={{
+                fontFamily: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
+                fontSize: 11,
+                color: "var(--color-text-tertiary)",
+                margin: "8px 0 0",
+              }}
+            >
+              From {a.authorName}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Animation — design system §5
@@ -69,6 +137,15 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function cohortWeeks(cohort: { startsAt: number; endsAt: number | null }, now: number) {
+  const total = cohort.endsAt ? Math.max(1, Math.ceil((cohort.endsAt - cohort.startsAt) / WEEK_MS)) : null;
+  if (now < cohort.startsAt) return { started: false as const, total };
+  const current = Math.floor((now - cohort.startsAt) / WEEK_MS) + 1;
+  return { started: true as const, current: total ? Math.min(current, total) : current, total };
+}
+
 // ---------------------------------------------------------------------------
 // Shared style shortcuts
 // ---------------------------------------------------------------------------
@@ -77,34 +154,6 @@ const font = {
   body: "var(--font-body), 'Inter', system-ui, -apple-system, sans-serif",
   mono: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
 };
-
-// ---------------------------------------------------------------------------
-// Live session banner helpers
-// ---------------------------------------------------------------------------
-function getUpcomingSession() {
-  return mockSessions.find((s) => s.status === "upcoming") ?? null;
-}
-
-function getSessionDateTime(session: { date: string; time: string }): Date {
-  return new Date(`${session.date}T${session.time}:00`);
-}
-
-function formatSessionDate(session: { date: string; time: string; timezone: string }): string {
-  const dt = getSessionDateTime(session);
-  const dayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const monthNames = [
-    "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
-    "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
-  ];
-  const day = dayNames[dt.getDay()];
-  const month = monthNames[dt.getMonth()];
-  const hours = dt.getHours();
-  const minutes = dt.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const h12 = hours % 12 || 12;
-  const timeStr = minutes === 0 ? `${h12}:00 ${ampm}` : `${h12}:${pad2(minutes)} ${ampm}`;
-  return `${day}, ${month} ${dt.getDate()} \u00b7 ${timeStr} ${session.timezone}`;
-}
 
 // ---------------------------------------------------------------------------
 // Toast type
@@ -125,9 +174,29 @@ const toastDotColor: Record<ToastData["type"], string> = {
 // ---------------------------------------------------------------------------
 export default function HomePage() {
   const router = useRouter();
-  const [progress, setProgress] = useState(0);
+  const { me, track } = useLearnerTrack();
+  const home = useQuery(api.curriculum.home, track ? { trackId: track.trackId } : "skip");
+  const missionData = useQuery(api.missions.list, track ? { trackId: track.trackId } : "skip");
+  const missionStats = missionData?.stats ?? null;
+  const currentMission = missionData ? pickCurrentMission(missionData.missions) : null;
+  const currentDue = currentMission ? dueLabel(currentMission) : null;
+  const [now] = useState(() => Date.now());
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
+
+  const firstName = me?.user.fullName.split(/\s+/)[0] ?? "";
+  const cohort = home?.cohort ?? null;
+  const weeks = cohort ? cohortWeeks(cohort, now) : null;
+  const next = home?.next ?? null;
+  const nextPercent = next && next.lessonCount > 0 ? Math.round((next.completedLessons / next.lessonCount) * 100) : 0;
+  const contextLine = [
+    cohort?.name,
+    track?.name,
+    weeks?.started ? `Week ${pad2(weeks.current)}${weeks.total ? ` / ${weeks.total}` : ""}` : null,
+    weeks && !weeks.started && cohort ? `Starts ${new Date(cohort.startsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const showToast = useCallback((message: string, type: ToastData["type"] = "success") => {
     setToast({ message, type });
   }, []);
@@ -139,25 +208,15 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => {
-    if (nextModule) {
-      const timer = setTimeout(() => setProgress(nextModule.progressPercent), 100);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  const upcomingSession = useMemo(() => getUpcomingSession(), []);
-
-  // "live" if session starts within 15 mins (or already started within its duration)
-  const bannerState = useMemo(() => {
-    if (!upcomingSession) return null;
-    const sessionTime = getSessionDateTime(upcomingSession);
-    const now = new Date();
-    const diffMs = sessionTime.getTime() - now.getTime();
-    const diffMins = diffMs / (1000 * 60);
-    if (diffMins <= 15 && diffMins > -(upcomingSession.duration ?? 90)) return "live" as const;
-    return "upcoming" as const;
-  }, [upcomingSession]);
+  const clock = useNow(60_000);
+  const upcomingSession = useQuery(
+    api.workshops.next,
+    track && clock > 0 ? { trackId: track.trackId, now: clock } : "skip",
+  );
+  const bannerState = upcomingSession ? workshopPhase(upcomingSession.scheduledAt, upcomingSession.endsAt, clock) : null;
+  const announcements = useQuery(api.announcements.feed, track ? { trackId: track.trackId, limit: 5 } : "skip");
+  const certificates = useQuery(api.certificates.mine, me ? {} : "skip");
+  const certificate = certificates?.find((c) => c.trackId === track?.trackId) ?? null;
 
   // Suppress unused var warning — showToast is exposed for future use
   void showToast;
@@ -229,31 +288,45 @@ export default function HomePage() {
                   color: "#737373",
                 }}
               >
-                {formatSessionDate(upcomingSession)}
+                {bannerState === "live"
+                  ? "HAPPENING NOW"
+                  : `${sessionDay(upcomingSession.scheduledAt).toUpperCase()} \u00b7 ${sessionTime(upcomingSession.scheduledAt)}`}
               </span>
             </div>
 
-            {/* RIGHT */}
-            <span
-              onClick={() => {
-                if (bannerState === "live" && upcomingSession.joinUrl) {
-                  window.open(upcomingSession.joinUrl, "_blank", "noopener,noreferrer");
-                } else {
-                  router.push("/live");
-                }
-              }}
-              style={{
-                fontFamily: font.body,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "#A5B4FC",
-                cursor: "pointer",
-                flexShrink: 0,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {bannerState === "live" ? "Join now \u2192" : "View details \u2192"}
-            </span>
+            {bannerState === "live" ? (
+              <a
+                href={upcomingSession.meetingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "#A5B4FC",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  textDecoration: "none",
+                }}
+              >
+                Join now {"\u2192"}
+              </a>
+            ) : (
+              <Link
+                href="/live"
+                style={{
+                  fontFamily: font.body,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "#A5B4FC",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  textDecoration: "none",
+                }}
+              >
+                View details {"\u2192"}
+              </Link>
+            )}
           </div>
         )}
         {/* ── ZONE 1: Page Header ── */}
@@ -268,7 +341,8 @@ export default function HomePage() {
               margin: 0,
             }}
           >
-            {getGreeting()}, {user.firstName}
+            {getGreeting()}
+            {firstName && `, ${firstName}`}
           </h1>
           <p
             style={{
@@ -282,9 +356,38 @@ export default function HomePage() {
               marginTop: 6,
             }}
           >
-            COHORT 01 · DESIGN LAB · WEEK 03 / 12
+            {contextLine || "\u00a0"}
           </p>
         </header>
+
+        {certificate && (
+          <Link
+            href={`/certificates/${certificate.code}`}
+            className="home-banner"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "14px 20px",
+              marginBottom: 24,
+              borderRadius: 12,
+              border: "1px solid rgba(34,197,94,0.25)",
+              backgroundColor: "rgba(34,197,94,0.06)",
+              textDecoration: "none",
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Award aria-hidden style={{ width: 18, height: 18, color: "#4ADE80", flexShrink: 0 }} />
+              <span style={{ fontFamily: font.body, fontSize: 14, fontWeight: 500, color: "#FFFFFF" }}>
+                You completed {certificate.trackName}. Your certificate is ready.
+              </span>
+            </span>
+            <span style={{ fontFamily: font.body, fontSize: 13, fontWeight: 500, color: "#4ADE80", whiteSpace: "nowrap" }}>
+              View certificate {"\u2192"}
+            </span>
+          </Link>
+        )}
 
         {/* ── ZONE 2: Stat Row ── */}
         <section
@@ -299,20 +402,30 @@ export default function HomePage() {
           {[
             {
               label: "CURRENT WEEK",
-              value: `W${pad2(cohort.currentWeek)}`,
-              sub: `OF ${cohort.totalWeeks} WEEKS`,
+              value: weeks?.started ? `W${pad2(weeks.current)}` : "—",
+              sub: weeks?.started
+                ? weeks.total
+                  ? `OF ${weeks.total} WEEKS`
+                  : "OF THE COHORT"
+                : cohort
+                  ? "NOT STARTED YET"
+                  : "NO COHORT",
               valueColor: "#6366F1",
             },
             {
               label: "MODULES COMPLETE",
-              value: pad2(stats.modulesComplete),
-              sub: `OF ${stats.modulesTotal} MODULES`,
+              value: home ? pad2(home.modules.completed) : "—",
+              sub: home ? `OF ${home.modules.total} MODULES` : "\u00a0",
               valueColor: "#FFFFFF",
             },
             {
               label: "MISSIONS",
-              value: pad2(stats.missionsPassed),
-              sub: `PASSED \u00b7 ${pad2(stats.missionsPending)} PENDING`,
+              value: missionStats ? pad2(missionStats.done) : "—",
+              sub: missionStats
+                ? missionStats.waiting > 0
+                  ? `OF ${missionStats.total} DONE \u00b7 ${missionStats.waiting} IN REVIEW`
+                  : `OF ${missionStats.total} DONE`
+                : "\u00a0",
               valueColor: "#FFFFFF",
             },
           ].map((stat) => (
@@ -412,7 +525,7 @@ export default function HomePage() {
                 UP NEXT
               </span>
 
-              {nextModule ? (
+              {next ? (
                 <>
                   <h2
                     style={{
@@ -424,7 +537,7 @@ export default function HomePage() {
                       margin: 0,
                     }}
                   >
-                    {nextModule.label}
+                    {next.moduleTitle}
                   </h2>
 
                   {/* Breadcrumb + BTC badge */}
@@ -440,7 +553,7 @@ export default function HomePage() {
                         color: "#737373",
                       }}
                     >
-                      {nextModule.unit} · {nextModule.module} · {nextModule.lesson}
+                      {next.unitTitle} · {next.mission ? `Mission: ${next.mission.title}` : next.lessonTitle}
                     </span>
                   </div>
 
@@ -459,7 +572,9 @@ export default function HomePage() {
                         display: "block",
                       }}
                     >
-                      {nextModule.progressPercent}% OF MODULE COMPLETE
+                      {next.mission
+                        ? "LESSONS DONE · MISSION LEFT TO FINISH"
+                        : `${next.completedLessons} OF ${next.lessonCount} LESSONS COMPLETE`}
                     </span>
                     <div
                       style={{
@@ -472,7 +587,7 @@ export default function HomePage() {
                     >
                       <div
                         style={{
-                          width: `${progress}%`,
+                          width: `${nextPercent}%`,
                           transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)",
                           height: 3,
                           backgroundColor: "#6366F1",
@@ -487,7 +602,9 @@ export default function HomePage() {
                     <button
                       onClick={() => {
                         setIsLoading(true);
-                        router.push("/learn/bitcoin-as-a-design-medium");
+                        router.push(
+                          next.mission ? `/missions/${next.mission.slug}` : `/learn/${next.moduleSlug}/${next.lessonSlug}`,
+                        );
                       }}
                       disabled={isLoading}
                       style={{
@@ -511,7 +628,7 @@ export default function HomePage() {
                         if (!isLoading) e.currentTarget.style.backgroundColor = "#6366F1";
                       }}
                     >
-                      Continue learning
+                      {next.mission ? "Open mission" : next.completedLessons > 0 ? "Continue learning" : "Start lesson"}
                     </button>
                     <button
                       onClick={() => router.push("/learn")}
@@ -553,7 +670,7 @@ export default function HomePage() {
                       marginTop: 12,
                     }}
                   >
-                    You're all caught up
+                    {home && home.modules.total > 0 ? "You're all caught up" : "Nothing to learn yet"}
                   </p>
                   <p
                     style={{
@@ -564,7 +681,11 @@ export default function HomePage() {
                       marginTop: 6,
                     }}
                   >
-                    No modules in progress. Continue from where you left off.
+                    {home && home.modules.total > 0
+                      ? "You've finished every module published so far."
+                      : track
+                        ? "Your mentors haven't published any modules yet."
+                        : "You'll see your modules here once you join a track."}
                   </p>
                   <button
                     onClick={() => router.push("/learn")}
@@ -638,20 +759,22 @@ export default function HomePage() {
                   </h2>
 
                   {/* Status row */}
-                  <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
-                    <span
-                      style={{
-                        fontFamily: font.mono,
-                        fontSize: 11,
-                        lineHeight: "14px",
-                        fontWeight: 600,
-                        letterSpacing: "0.10em",
-                        textTransform: "uppercase",
-                        color: "#F59E0B",
-                      }}
-                    >
-                      DUE IN {currentMission.dueInDays} DAYS
-                    </span>
+                  <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    {currentDue && (
+                      <span
+                        style={{
+                          fontFamily: font.mono,
+                          fontSize: 11,
+                          lineHeight: "14px",
+                          fontWeight: 600,
+                          letterSpacing: "0.10em",
+                          textTransform: "uppercase",
+                          color: currentDue.color,
+                        }}
+                      >
+                        {currentDue.text}
+                      </span>
+                    )}
                     <span
                       style={{
                         fontFamily: font.mono,
@@ -659,21 +782,27 @@ export default function HomePage() {
                         fontWeight: 600,
                         letterSpacing: "0.10em",
                         textTransform: "uppercase",
-                        color: "#A5B4FC",
-                        backgroundColor: "rgba(99,102,241,0.12)",
-                        border: "1px solid rgba(99,102,241,0.35)",
+                        color: currentMission.status === "needs_revision" ? "#FBBF24" : "#A5B4FC",
+                        backgroundColor:
+                          currentMission.status === "needs_revision" ? "rgba(251,191,36,0.10)" : "rgba(99,102,241,0.12)",
+                        border: `1px solid ${
+                          currentMission.status === "needs_revision" ? "rgba(251,191,36,0.35)" : "rgba(99,102,241,0.35)"
+                        }`,
                         padding: "3px 8px",
                         borderRadius: 999,
                       }}
                     >
-                      IN PROGRESS
+                      {missionStatusLabel(currentMission.status, currentMission.reviewType)}
                     </span>
                   </div>
+                  <p style={{ fontFamily: font.body, fontSize: 13, color: "#737373", margin: "8px 0 0" }}>
+                    Module {currentMission.module.number} · {currentMission.module.title}
+                  </p>
 
                   {/* Buttons */}
-                  <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                     <button
-                      onClick={() => router.push("/missions/bitcoin-ux-audit-wallets")}
+                      onClick={() => router.push(`/missions/${currentMission.slug}`)}
                       style={{
                         height: 40,
                         padding: "0 20px",
@@ -689,10 +818,10 @@ export default function HomePage() {
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#777AF5")}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#6366F1")}
                     >
-                      Submit deliverable
+                      {currentMission.status === "needs_revision" ? "Revise and resubmit" : "Open mission"}
                     </button>
                     <button
-                      onClick={() => router.push("/missions/bitcoin-ux-audit-wallets")}
+                      onClick={() => router.push("/missions")}
                       style={{
                         height: 40,
                         padding: "0 20px",
@@ -714,13 +843,19 @@ export default function HomePage() {
                         e.currentTarget.style.borderColor = "#333333";
                       }}
                     >
-                      Mission brief
+                      All missions
                     </button>
                   </div>
                 </>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                  <CheckCircle2 style={{ width: 32, height: 32, color: "#22C55E" }} />
+                  {missionStats && missionStats.waiting > 0 ? (
+                    <Clock style={{ width: 32, height: 32, color: "#A5B4FC" }} />
+                  ) : missionStats && missionStats.total > 0 ? (
+                    <CheckCircle2 style={{ width: 32, height: 32, color: "#22C55E" }} />
+                  ) : (
+                    <Target style={{ width: 32, height: 32, color: "#737373" }} />
+                  )}
                   <p
                     style={{
                       fontFamily: font.body,
@@ -731,7 +866,13 @@ export default function HomePage() {
                       marginTop: 12,
                     }}
                   >
-                    No active missions
+                    {!missionStats
+                      ? "\u00a0"
+                      : missionStats.waiting > 0
+                        ? `${missionStats.waiting} waiting for review`
+                        : missionStats.total > 0
+                          ? "All missions done"
+                          : "No missions yet"}
                   </p>
                   <p
                     style={{
@@ -742,7 +883,11 @@ export default function HomePage() {
                       marginTop: 6,
                     }}
                   >
-                    Check back when your next mission is assigned.
+                    {missionStats && missionStats.waiting > 0
+                      ? "A mentor will review your work. You'll see their feedback on the mission page."
+                      : missionStats && missionStats.total > 0
+                        ? "Nice work. New missions show up here as modules are published."
+                        : "Missions appear here as your mentors publish them."}
                   </p>
                 </div>
               )}
@@ -902,62 +1047,14 @@ export default function HomePage() {
           </span>
 
           <div style={{ marginTop: 12 }}>
-            {announcements.length > 0 ? (
+            {announcements === undefined ? null : announcements.length > 0 ? (
               announcements.map((a, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    paddingTop: 12,
-                    paddingBottom: 12,
-                    borderBottom:
-                      i < announcements.length - 1
-                        ? "1px solid var(--color-border-subtle)"
-                        : "none",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                    <Megaphone
-                      style={{
-                        width: 16,
-                        height: 16,
-                        color: "var(--color-text-tertiary)",
-                        marginTop: 3,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <p
-                      style={{
-                        fontFamily: font.body,
-                        fontSize: "14.5px",
-                        lineHeight: "22px",
-                        fontWeight: 400,
-                        color: "var(--color-text-primary)",
-                        margin: 0,
-                      }}
-                    >
-                      {a.title}
-                    </p>
-                  </div>
-                  <span
-                    style={{
-                      fontFamily: font.mono,
-                      fontSize: 11,
-                      lineHeight: "14px",
-                      fontWeight: 500,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      color: "var(--color-text-tertiary)",
-                      flexShrink: 0,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {a.time}
-                  </span>
-                </div>
+                <AnnouncementItem
+                  key={a._id}
+                  announcement={a}
+                  last={i === announcements.length - 1}
+                  time={relativeTime(a.createdAt, clock)}
+                />
               ))
             ) : (
               <p

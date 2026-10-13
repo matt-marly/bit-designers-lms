@@ -6,14 +6,20 @@ import { motion, LayoutGroup } from "framer-motion";
 import {
   Home,
   BookOpen,
+  Map,
   Target,
   Radio,
   FolderOpen,
   Library,
   Users,
   Search,
-  ExternalLink,
 } from "lucide-react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { roleLabel } from "@/lib/access";
+import { WorkspaceSwitcher } from "@/components/workspace-switcher";
+import { Avatar } from "@/components/admin/ui";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 
 const navGroups = [
   {
@@ -21,6 +27,7 @@ const navGroups = [
     items: [
       { href: "/home", label: "Home", icon: Home },
       { href: "/learn", label: "Learn", icon: BookOpen },
+      { href: "/roadmaps", label: "Roadmaps", icon: Map },
       { href: "/missions", label: "Missions", icon: Target },
       { href: "/live", label: "Live", icon: Radio },
     ],
@@ -37,6 +44,8 @@ const navGroups = [
 
 export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
   const pathname = usePathname();
+  const { isAuthenticated } = useConvexAuth();
+  const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
 
   return (
     <aside
@@ -51,7 +60,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
       }}
     >
       {/* Logo zone — 64px height */}
-      <div style={{ height: 64, display: "flex", alignItems: "center", paddingLeft: 12 }}>
+      <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 12 }}>
         <Link href="/home">
           <img
             src="/logo-white.svg"
@@ -59,6 +68,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
             style={{ height: 24, width: "auto", display: "block", filter: "brightness(0) invert(1)" }}
           />
         </Link>
+        <NotificationBell />
       </div>
 
       <nav role="navigation" aria-label="Main navigation" style={{ flex: 1 }}>
@@ -221,6 +231,10 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
         </kbd>
       </button>
 
+      <div style={{ marginBottom: 8 }}>
+        <WorkspaceSwitcher current="learn" fullWidth />
+      </div>
+
       {/* User zone */}
       <div
         style={{
@@ -244,16 +258,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#161616")}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
         >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 999,
-              backgroundColor: "var(--color-bg-surface-3)",
-              border: "1px solid var(--color-border-subtle)",
-              flexShrink: 0,
-            }}
-          />
+          <Avatar name={me?.user.fullName ?? ""} src={me?.avatarUrl} size={32} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <p
               style={{
@@ -267,7 +272,7 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
                 whiteSpace: "nowrap",
               }}
             >
-              Amara
+              {me?.user.fullName ?? "\u00A0"}
             </p>
             <span
               style={{
@@ -288,49 +293,11 @@ export function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
                 marginTop: 2,
               }}
             >
-              Learner
+              {me ? roleLabel(me) : "Learner"}
             </span>
           </div>
         </Link>
       </div>
-
-      {/* Admin link — TODO: restrict to admin/mentor role */}
-      <button
-        onClick={() => window.open("/admin", "_blank")}
-        aria-label="Admin dashboard"
-        style={{
-          padding: "8px 12px",
-          marginTop: 4,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          cursor: "pointer",
-          opacity: 0.6,
-          background: "none",
-          border: "none",
-          width: "100%",
-          transitionProperty: "opacity",
-          transitionDuration: "var(--duration-fast)",
-          transitionTimingFunction: "var(--ease-out-quart)",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
-      >
-        <ExternalLink
-          style={{ width: 11, height: 11, color: "var(--color-text-tertiary)" }}
-          aria-hidden="true"
-        />
-        <span
-          style={{
-            fontFamily: "var(--font-body), 'Inter', system-ui, sans-serif",
-            fontSize: 11,
-            fontWeight: 400,
-            color: "var(--color-text-tertiary)",
-          }}
-        >
-          Admin
-        </span>
-      </button>
     </aside>
   );
 }

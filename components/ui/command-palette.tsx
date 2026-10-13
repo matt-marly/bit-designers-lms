@@ -11,15 +11,27 @@ import {
   Radio,
   FolderOpen,
   Library,
-  Users,
   FileText,
   PlayCircle,
   ChevronRight,
 } from "lucide-react";
-import { mockUnits } from "@/lib/mock-learn-data";
-import { mockMissions } from "@/lib/mock-missions-data";
-import { mockMaterialGroups } from "@/lib/mock-materials-data";
-import { mockReferenceGroups } from "@/lib/mock-reference-data";
+import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
+import { api } from "@/convex/_generated/api";
+import { useLearnerTrack } from "@/lib/use-learner-track";
+import { videoEmbedUrl } from "@/lib/video";
+import { missionStatusLabel, type MissionStatus, type ReviewType } from "@/components/learn/missions";
+
+type MissionHit = { slug: string; title: string; status: MissionStatus; reviewType: ReviewType };
+type UnitHit = FunctionReturnType<typeof api.curriculum.overview>["units"][number];
+type ResourceHit = FunctionReturnType<typeof api.resources.list>[number];
+
+type SearchSources = {
+  units: UnitHit[];
+  missions: MissionHit[];
+  materials: ResourceHit[];
+  references: ResourceHit[];
+};
 
 const font = {
   display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
@@ -62,12 +74,11 @@ function highlightMatch(text: string, query: string) {
   );
 }
 
-function getSearchResults(query: string): SearchResult[] {
+function getSearchResults(query: string, { units, missions, materials, references }: SearchSources): SearchResult[] {
   const q = query.toLowerCase();
   const results: SearchResult[] = [];
 
-  // Modules
-  for (const unit of mockUnits) {
+  for (const unit of units) {
     for (const mod of unit.modules) {
       if (mod.title.toLowerCase().includes(q)) {
         results.push({
@@ -82,13 +93,12 @@ function getSearchResults(query: string): SearchResult[] {
     }
   }
 
-  // Missions
-  for (const mission of mockMissions) {
+  for (const mission of missions) {
     if (mission.title.toLowerCase().includes(q)) {
       results.push({
         id: `mis-${mission.slug}`,
         title: mission.title,
-        context: `MISSION \u00b7 ${mission.status.replace(/-/g, " ").toUpperCase()}`,
+        context: `MISSION \u00b7 ${missionStatusLabel(mission.status, mission.reviewType)}`,
         type: "mission",
         href: `/missions/${mission.slug}`,
         icon: Target,
@@ -96,35 +106,29 @@ function getSearchResults(query: string): SearchResult[] {
     }
   }
 
-  // Materials
-  for (const group of mockMaterialGroups) {
-    for (const mat of group.materials) {
-      if (mat.title.toLowerCase().includes(q)) {
-        results.push({
-          id: `mat-${mat.slug}`,
-          title: mat.title,
-          context: `MATERIAL \u00b7 ${mat.readTime}`,
-          type: "material",
-          url: mat.url,
-          icon: FileText,
-        });
-      }
+  for (const mat of materials) {
+    if (mat.url && mat.title.toLowerCase().includes(q)) {
+      results.push({
+        id: `mat-${mat._id}`,
+        title: mat.title,
+        context: ["MATERIAL", mat.resourceType === "file" ? "PDF" : null, mat.meta].filter(Boolean).join(" \u00b7 "),
+        type: "material",
+        url: mat.url,
+        icon: FileText,
+      });
     }
   }
 
-  // Reference
-  for (const group of mockReferenceGroups) {
-    for (const ref of group.items) {
-      if (ref.title.toLowerCase().includes(q)) {
-        results.push({
-          id: `ref-${ref.id}`,
-          title: ref.title,
-          context: `REFERENCE \u00b7 ${ref.duration}`,
-          type: "reference",
-          url: ref.url,
-          icon: ref.type === "video" ? PlayCircle : FileText,
-        });
-      }
+  for (const ref of references) {
+    if (ref.url && ref.title.toLowerCase().includes(q)) {
+      results.push({
+        id: `ref-${ref._id}`,
+        title: ref.title,
+        context: ["REFERENCE", ref.meta].filter(Boolean).join(" \u00b7 "),
+        type: "reference",
+        url: ref.url,
+        icon: videoEmbedUrl(ref.url) ? PlayCircle : FileText,
+      });
     }
   }
 
@@ -153,15 +157,39 @@ export function CommandPalette({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const [query, setQuery] = useState("");
+  // Mounting only while open gives every opening a fresh query and highlight.
+  return isOpen ? <Palette onClose={onClose} /> : null;
+}
+
+function Palette({ onClose }: { onClose: () => void }) {
+  const [query, setQueryState] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { loading, track } = useLearnerTrack();
+  const trackArgs = track ? { trackId: track.trackId } : "skip";
+  const missionData = useQuery(api.missions.list, trackArgs);
+  const outline = useQuery(api.curriculum.overview, trackArgs);
+  const materials = useQuery(api.resources.list, loading ? "skip" : { kind: "material", trackId: track?.trackId });
+  const references = useQuery(api.resources.list, loading ? "skip" : { kind: "reference", trackId: track?.trackId });
+
+  const setQuery = useCallback((value: string) => {
+    setQueryState(value);
+    setHighlightedIndex(0);
+  }, []);
 
   const results = useMemo(
-    () => (query ? getSearchResults(query) : []),
-    [query]
+    () =>
+      query
+        ? getSearchResults(query, {
+            units: outline?.units ?? [],
+            missions: missionData?.missions ?? [],
+            materials: materials ?? [],
+            references: references ?? [],
+          })
+        : [],
+    [query, outline, missionData, materials, references]
   );
   const groups = useMemo(() => groupResults(results), [results]);
 
@@ -171,30 +199,19 @@ export function CommandPalette({
     return results.map((r, i) => ({ ...r, _idx: i, _type: "result" as const }));
   }, [query, results]);
 
-  // Reset on open/close
   useEffect(() => {
-    if (isOpen) {
-      setQuery("");
-      setHighlightedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [isOpen]);
+    const timer = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Lock body scroll
   useEffect(() => {
-    if (isOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [isOpen]);
-
-  // Reset highlight when query changes
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [query]);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const activateItem = useCallback(
     (index: number) => {
@@ -220,8 +237,6 @@ export function CommandPalette({
 
   // Keyboard navigation
   useEffect(() => {
-    if (!isOpen) return;
-
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -251,7 +266,7 @@ export function CommandPalette({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, highlightedIndex, allItems, activateItem, onClose]);
+  }, [highlightedIndex, allItems, activateItem, onClose]);
 
   // Scroll highlighted item into view
   useEffect(() => {
@@ -259,8 +274,6 @@ export function CommandPalette({
     const el = resultsRef.current.querySelector(`[data-index="${highlightedIndex}"]`);
     if (el) el.scrollIntoView({ block: "nearest" });
   }, [highlightedIndex]);
-
-  if (!isOpen) return null;
 
   let flatIndex = 0;
 

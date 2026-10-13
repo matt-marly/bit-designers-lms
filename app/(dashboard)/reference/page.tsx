@@ -1,9 +1,18 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { PlayCircle, ExternalLink, ChevronDown, Search, X, AlertCircle } from "lucide-react";
-import { mockReferenceGroups } from "@/lib/mock-reference-data";
-import type { ReferenceItem } from "@/lib/mock-reference-data";
+import { api } from "@/convex/_generated/api";
+import { RESOURCE_CATEGORIES } from "@/convex/lib/resources";
+import { useLearnerTrack } from "@/lib/use-learner-track";
+import { videoEmbedUrl } from "@/lib/video";
+import { LoadingLine } from "@/components/learn/ui";
+
+type ReferenceItem = FunctionReturnType<typeof api.resources.list>[number];
+
+const referenceCategories = RESOURCE_CATEGORIES.reference;
 
 const font = {
   display: "var(--font-display), 'Space Grotesk', 'Inter', system-ui, sans-serif",
@@ -11,13 +20,7 @@ const font = {
   mono: "var(--font-mono), 'JetBrains Mono', 'SF Mono', monospace",
 };
 
-const filterTabs = [
-  { label: "All", value: "all" },
-  { label: "Foundations", value: "foundations" },
-  { label: "Craft", value: "craft" },
-  { label: "Research", value: "research" },
-  { label: "Contribution", value: "contribution" },
-];
+const filterTabs = [{ label: "All", value: "all" }, ...referenceCategories.map((c) => ({ label: c.label, value: c.id }))];
 
 function FilterTab({
   label,
@@ -57,22 +60,6 @@ function FilterTab({
       {label}
     </button>
   );
-}
-
-function getYouTubeEmbedUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    let videoId: string | null = null;
-    if (parsed.hostname.includes("youtube.com")) {
-      videoId = parsed.searchParams.get("v");
-    } else if (parsed.hostname === "youtu.be") {
-      videoId = parsed.pathname.slice(1);
-    }
-    if (!videoId) return null;
-    return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
-  } catch {
-    return null;
-  }
 }
 
 interface ToastData {
@@ -332,25 +319,27 @@ function ReferenceCard({
         >
           VIDEO
         </span>
-        <span
-          style={{
-            position: "absolute",
-            bottom: 10,
-            right: 10,
-            backgroundColor: "rgba(0,0,0,0.7)",
-            padding: "3px 8px",
-            borderRadius: 6,
-            fontFamily: font.mono,
-            fontSize: 10,
-            lineHeight: "12px",
-            fontWeight: 500,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--color-text-tertiary)",
-          }}
-        >
-          {item.duration}
-        </span>
+        {item.meta && (
+          <span
+            style={{
+              position: "absolute",
+              bottom: 10,
+              right: 10,
+              backgroundColor: "rgba(0,0,0,0.7)",
+              padding: "3px 8px",
+              borderRadius: 6,
+              fontFamily: font.mono,
+              fontSize: 10,
+              lineHeight: "12px",
+              fontWeight: 500,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--color-text-tertiary)",
+            }}
+          >
+            {item.meta}
+          </span>
+        )}
       </div>
 
       {/* Card body */}
@@ -382,7 +371,7 @@ function ReferenceCard({
             flex: 1,
           }}
         >
-          {item.description}
+          {item.description ?? ""}
         </p>
         <div
           style={{
@@ -402,7 +391,7 @@ function ReferenceCard({
               color: "var(--color-text-tertiary)",
             }}
           >
-            {item.source}
+            {item.source ?? "Link"}
           </span>
         </div>
       </div>
@@ -413,9 +402,11 @@ function ReferenceCard({
 export default function ReferencePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const { loading, track } = useLearnerTrack();
+  const resources = useQuery(api.resources.list, loading ? "skip" : { kind: "reference", trackId: track?.trackId });
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    for (const g of mockReferenceGroups) initial[g.id] = true;
+    for (const c of referenceCategories) initial[c.id] = true;
     return initial;
   });
   const [modalEmbedUrl, setModalEmbedUrl] = useState<string | null>(null);
@@ -436,12 +427,12 @@ export default function ReferencePage() {
         addToast("Video unavailable");
         return;
       }
-      const embedUrl = getYouTubeEmbedUrl(item.url);
+      const embedUrl = videoEmbedUrl(item.url);
       if (!embedUrl) {
-        addToast("Video unavailable");
+        window.open(item.url, "_blank", "noopener,noreferrer");
         return;
       }
-      setModalEmbedUrl(embedUrl);
+      setModalEmbedUrl(`${embedUrl}&autoplay=1`);
     },
     [addToast]
   );
@@ -454,30 +445,38 @@ export default function ReferencePage() {
     setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const groups = useMemo(
+    () =>
+      referenceCategories
+        .map((c) => ({ ...c, items: (resources ?? []).filter((r) => r.category === c.id) }))
+        .filter((g) => g.items.length > 0),
+    [resources],
+  );
+
   const filteredGroups = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return mockReferenceGroups
+    return groups
       .filter((group) => activeFilter === "all" || group.id === activeFilter)
       .map((group) => {
         if (!q) return group;
         const filtered = group.items.filter(
           (item) =>
             item.title.toLowerCase().includes(q) ||
-            item.description.toLowerCase().includes(q)
+            (item.description ?? "").toLowerCase().includes(q)
         );
         return { ...group, items: filtered };
       })
       .filter((group) => group.items.length > 0);
-  }, [searchQuery, activeFilter]);
+  }, [groups, searchQuery, activeFilter]);
 
   const isSpecificFilter = activeFilter !== "all";
 
-  const allExpanded = mockReferenceGroups.every((g) => expandedGroups[g.id] !== false);
+  const allExpanded = groups.every((g) => expandedGroups[g.id] !== false);
 
   const toggleAll = () => {
     const newState: Record<string, boolean> = {};
     const target = !allExpanded;
-    for (const g of mockReferenceGroups) newState[g.id] = target;
+    for (const g of groups) newState[g.id] = target;
     setExpandedGroups(newState);
   };
 
@@ -632,7 +631,13 @@ export default function ReferencePage() {
 
       <div style={{ height: 32 }} />
 
-      {filteredGroups.length === 0 ? (
+      {resources === undefined ? (
+        <LoadingLine>Loading reference…</LoadingLine>
+      ) : groups.length === 0 ? (
+        <p style={{ fontFamily: font.body, fontSize: 14, color: "var(--color-text-tertiary)", margin: 0 }}>
+          No reference videos have been added yet.
+        </p>
+      ) : filteredGroups.length === 0 ? (
         <div
           style={{
             display: "flex",
@@ -845,7 +850,7 @@ export default function ReferencePage() {
                     style={{ gap: 12, alignItems: "stretch" }}
                   >
                     {group.items.map((item) => (
-                      <ReferenceCard key={item.id} item={item} onPlay={handlePlay} />
+                      <ReferenceCard key={item._id} item={item} onPlay={handlePlay} />
                     ))}
                   </div>
                 </div>
